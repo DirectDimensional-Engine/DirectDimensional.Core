@@ -277,6 +277,23 @@ namespace DirectDimensional.Core.Utilities {
             return anchor + (anchor - vector);
         }
 
+        public static void RotateThis(this Vector2 v, float rad) {
+            (float sin, float cos) = MathF.SinCos(rad);
+
+            float tx = v.X;
+            float ty = v.Y;
+            v.X = (cos * tx) - (sin * ty);
+            v.Y = (sin * tx) + (cos * ty);
+        }
+
+        public static Vector2 Rotate(this Vector2 v, float rad) {
+            (float sin, float cos) = MathF.SinCos(rad);
+
+            float tx = v.X;
+            float ty = v.Y;
+            return new Vector2((cos * tx) - (sin * ty), (sin * tx) + (cos * ty));
+        }
+
         public static Vector2 NormalizeAndLength(in Vector2 vector, out float length) {
             length = vector.Length();
             return vector / length;
@@ -345,5 +362,20 @@ namespace DirectDimensional.Core.Utilities {
 
             return ret;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 V3(this Vector2 vec) => new(vec, 0);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 V4(this Vector2 vec) => new(vec, 0, 0);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 V2(this Vector3 vec) => new(vec.X, vec.Y);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 V4(this Vector3 vec) => new(vec, 0);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 V2(this Vector4 vec) => new(vec.X, vec.Y);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 V3(this Vector4 vec) => new(vec.X, vec.Y, vec.Z);
     }
 }

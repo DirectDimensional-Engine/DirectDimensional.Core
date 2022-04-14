@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <RootNamespace>DirectDimensional.Core</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,13 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="DirectDimensional-Bindings">
-      <HintPath>..\DirectDimensional.Bindings\bin\Debug\net6.0\DirectDimensional-Bindings.dll</HintPath>
+    <Reference Include="DirectDimensional.Bindings">
+      <HintPath>..\DirectDimensional.Bindings\bin\Debug\net6.0\DirectDimensional.Bindings.dll</HintPath>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Utilities\" />
   </ItemGroup>
 
 </Project>

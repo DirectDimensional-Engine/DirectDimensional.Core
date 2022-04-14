@@ -97,9 +97,8 @@ namespace DirectDimensional.Core {
             return _pixels != IntPtr.Zero;
         }
 
-        [MemberNotNullWhen(true, "_dxtexture", "_dxsrv", "_dxsampler")]
+        [MemberNotNullWhen(true, "_dxtexture", "_dxsrv", "_dxsampler", "DXTexture", "DXSRV", "DXSampler")]
         public bool IsRenderable => (Flags & TextureFlags.Render) == TextureFlags.Render;
-        [MemberNotNullWhen(true, "_dxtexture", "_dxsrv", "_dxsampler")]
         public bool IsWritable => (Flags & TextureFlags.Write) == TextureFlags.Write;
 
         public Color32 this[int x, int y] {
@@ -137,7 +136,7 @@ namespace DirectDimensional.Core {
             var ctx = Direct3DContext.DevCtx;
 
             D3D11_MAPPED_SUBRESOURCE msr;
-            ctx.Map(_dxtexture, 0u, D3D11_MAP.WriteDiscard, &msr);
+            ctx.Map(_dxtexture, 0u, D3D11_MAP.WriteDiscard, &msr).ThrowExceptionIfError();
 
             IntPtr pixels = _pixels;
             IntPtr pData = msr.pData;

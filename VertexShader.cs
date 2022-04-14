@@ -3,6 +3,7 @@ using DirectDimensional.Bindings;
 using System.Text;
 using DirectDimensional.Bindings.D3DCompiler;
 using DirectDimensional.Bindings.Direct3D11;
+using DirectDimensional.Core.Exceptions;
 using DirectDimensional.Core.Miscs;
 using System.Diagnostics.CodeAnalysis;
 
@@ -32,12 +33,7 @@ namespace DirectDimensional.Core {
         public static VertexShader? CompileFromRawFile(string path, string? sourceName) {
             if (!File.Exists(path)) return null;
 
-            try {
-                return CompileFromString(File.ReadAllText(path, Encoding.UTF8), sourceName ?? path);
-            } catch (Exception e) {
-                Logger.Error("Exception thrown while trying to compile Vertex Shader from file '" + path + "'" + Environment.NewLine + e.ToString());
-                return null;
-            }
+            return CompileFromString(File.ReadAllText(path, Encoding.UTF8), sourceName ?? path);
         }
 
         public static VertexShader? CompileFromRawFile(string path, string? sourceName, out Blob? bytecode) {
@@ -46,74 +42,63 @@ namespace DirectDimensional.Core {
                 return null;
             }
 
+            return CompileFromString(File.ReadAllText(path, Encoding.UTF8), sourceName ?? path, out bytecode);
+        }
+
+        /// <summary>
+        /// Compile Shader directly from input string at runtime.
+        /// </summary>
+        /// <param name="input">Shader code uncompiled</param>
+        /// <param name="sourceName">Source name to output. Useful for error handling</param>
+        /// <returns>Shader instance if the compilation process has no error.</returns>
+        /// <exception cref="ShaderCompilationException">Throw if compilation error are met.</exception>
+        public static VertexShader? CompileFromString(string input, string? sourceName, D3DCOMPILE flags = D3DCOMPILE.None) {
+            Blob? bytecode = null;
+
             try {
-                return CompileFromString(File.ReadAllText(path, Encoding.UTF8), sourceName ?? path, out bytecode);
-            } catch (Exception e) {
-                Logger.Error("Exception thrown while trying to compile Vertex Shader from file '" + path + "'" + Environment.NewLine + e.ToString());
-
-                bytecode = null;
-                return null;
+                return CompileFromString(input, sourceName, out bytecode, flags);
+            } finally {
+                bytecode.CheckAndRelease();
             }
         }
 
-        public static VertexShader? CompileFromString(string input, string? sourceName) {
-            D3DCOMPILE flags = D3DCOMPILE.None;
-#if DEBUG
-            flags |= D3DCOMPILE.Debug;
-#endif
-            var device = Direct3DContext.Device;
-
-            HRESULT hr = D3D.Compile(input, sourceName, null, StandardShaderInclude.Instance, "main", "vs_4_0", flags, out var outputBlob, out var errorBlob);
-            if (hr.Failed) {
-                Console.WriteLine(Marshal.PtrToStringAnsi(errorBlob!.GetBufferPointer()));
-
-                outputBlob.CheckAndRelease();
-                errorBlob.Release();
-
-                return null;
-            }
-
-            hr = device.CreateVertexShader(outputBlob!, out var shader);
-            if (hr.Failed) {
-                hr.PrintExceptionIfError();
-
-                return null;
-            }
-
-            if (D3D.Reflect<ShaderReflection>(outputBlob!, out var reflection).Failed) {
-                return null;
-            }
-
-            return new VertexShader() { _vs = shader!, _reflection = reflection! };
-        }
-
-        internal static VertexShader? CompileFromString(string input, string? sourceName, out Blob? bytecode) {
-            D3DCOMPILE flags = D3DCOMPILE.None;
-#if DEBUG
-            flags |= D3DCOMPILE.Debug;
-#endif
+        /// <summary>
+        /// Compile Vertex Shader 4.0 model directly from input string at runtime.
+        /// </summary>
+        /// <param name="input">Shader code uncompiled</param>
+        /// <param name="sourceName">Source name to output. Useful for error handling</param>
+        /// <param name="bytecode">Reference to output bytecode. Must call Release() at some point.</param>
+        /// <param name="flags">Compilation flags</param>
+        /// <returns>Shader instance if the compilation process has no error.</returns>
+        /// <exception cref="ShaderCompilationException">Throw if compilation error are met.</exception>
+        internal static VertexShader? CompileFromString(string input, string? sourceName, out Blob? bytecode, D3DCOMPILE flags = D3DCOMPILE.None) {
             var device = Direct3DContext.Device;
 
             HRESULT hr = D3D.Compile(input, sourceName, null, StandardShaderInclude.Instance, "main", "vs_4_0", flags, out bytecode, out var errorBlob);
             if (hr.Failed) {
-                Console.WriteLine(Marshal.PtrToStringAnsi(errorBlob!.GetBufferPointer()));
-
                 bytecode.CheckAndRelease();
                 bytecode = null;
 
-                errorBlob.Release();
-
-                return null;
+                try {
+                    throw new ShaderCompilationException(errorBlob);
+                } finally {
+                    errorBlob?.CheckAndRelease();
+                }
             }
 
             hr = device.CreateVertexShader(bytecode!, out var shader);
             if (hr.Failed) {
-                hr.PrintExceptionIfError();
+                bytecode!.Release();
+                hr.ThrowExceptionIfError();
 
                 return null;
             }
 
-            if (D3D.Reflect<ShaderReflection>(bytecode!, out var reflection).Failed) {
+            hr = D3D.Reflect<ShaderReflection>(bytecode!, out var reflection);
+            if (hr.Failed) {
+                bytecode!.Release();
+                hr.ThrowExceptionIfError();
+
                 return null;
             }
 

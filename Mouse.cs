@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Numerics;
 
 namespace DirectDimensional.Core {
     public static class Mouse {
@@ -70,9 +67,25 @@ namespace DirectDimensional.Core {
             _currInsideWnd = false;
         }
 
-        public static (int X, int Y) MousePosition => (_currX, _currY);
+        public static (int X, int Y) MousePosition2 => (_currX, _currY);
+        public static Vector2 MousePosition => new(_currX, _currY);
 
         public static int MouseWheel => _wheelSign;
         public static bool InsideWindow => _currInsideWnd;
+
+        public static bool LeftPressed => _currLM && !_lastLM;
+        public static bool LeftReleased => !_currLM && _lastLM;
+        public static bool LeftHeld => _currLM;
+
+        public static bool RightPressed => _currRM && !_lastRM;
+        public static bool RightReleased => !_currRM && _lastRM;
+        public static bool RightHeld => _currRM;
+
+        public static bool MiddlePressed => _currMM && !_lastMM;
+        public static bool MiddleReleased => !_currMM && _lastMM;
+        public static bool MiddleHeld => _currMM;
+
+        public static (int X, int Y) MouseMoveDelta2 => (_currX - _lastX, _currY - _lastY);
+        public static Vector2 MouseMoveDelta => new(_currX - _lastX, _currY - _lastY);
     }
 }

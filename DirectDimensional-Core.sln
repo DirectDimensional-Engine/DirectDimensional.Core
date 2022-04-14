@@ -3,9 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.31911.260
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectDimensional-Core", "DirectDimensional-Core.csproj", "{AD515E33-3AB0-4328-98B3-382107CBAE08}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectDimensional.Core", "DirectDimensional.Core.csproj", "{AD515E33-3AB0-4328-98B3-382107CBAE08}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectDimensional-Bindings", "..\DirectDimensional.Bindings\DirectDimensional-Bindings.csproj", "{F9FE4FBE-1D68-48A0-9688-C715DA01EFF7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectDimensional.Bindings", "..\DirectDimensional.Bindings\DirectDimensional.Bindings.csproj", "{F9FE4FBE-1D68-48A0-9688-C715DA01EFF7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectDimensional.Editor", "..\DirectDimensional.Editor\DirectDimensional.Editor.csproj", "{D0737744-0C31-409D-B6A1-7A41AD943D59}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectDimensional.Runtime", "..\DirectDimensional.Runtime\DirectDimensional.Runtime.csproj", "{39806FAF-3994-4D3B-B216-FBBE6B16322D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +25,14 @@ Global
 		{F9FE4FBE-1D68-48A0-9688-C715DA01EFF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F9FE4FBE-1D68-48A0-9688-C715DA01EFF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F9FE4FBE-1D68-48A0-9688-C715DA01EFF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0737744-0C31-409D-B6A1-7A41AD943D59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0737744-0C31-409D-B6A1-7A41AD943D59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0737744-0C31-409D-B6A1-7A41AD943D59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0737744-0C31-409D-B6A1-7A41AD943D59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39806FAF-3994-4D3B-B216-FBBE6B16322D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39806FAF-3994-4D3B-B216-FBBE6B16322D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39806FAF-3994-4D3B-B216-FBBE6B16322D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39806FAF-3994-4D3B-B216-FBBE6B16322D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
