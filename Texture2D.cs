@@ -3,11 +3,14 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using DirectDimensional.Bindings.Direct3D11;
 using DirectDimensional.Bindings.DXGI;
+using DirectDimensional.Core.Utilities;
 
 using D3D11Texture2D = DirectDimensional.Bindings.Direct3D11.Texture2D;
 
 namespace DirectDimensional.Core {
     public sealed unsafe class Texture2D : DDObjects {
+        public static readonly int TextureMaximumSize = 4096;
+
         public int Width { get; private set; }
         public int Height { get; private set; }
 
@@ -23,59 +26,68 @@ namespace DirectDimensional.Core {
 
         public TextureFlags Flags { get; private set; }
 
+        public Texture2D(ReadOnlySpan<byte> channels, int width, TextureFlags flags) {
+            if (width <= 0 || width > TextureMaximumSize) {
+                width = Math.Clamp(width, 1, TextureMaximumSize);
+                Logger.Warn("Invalid width to create texture. Fallback to " + width);
+            }
+
+            Height = channels.Length / 4 / width;
+            if (Height <= 0) throw new ArgumentOutOfRangeException(nameof(channels), "Not sufficient enough to make a valid texture as the height of it will be 0");
+
+            Width = width;
+            Flags = flags;
+
+            int byteCount = Width * Height * 4;
+            _pixels = Marshal.AllocHGlobal(byteCount);
+
+            fixed (byte* pChannels = channels) {
+                Unsafe.CopyBlock(_pixels.ToPointer(), pChannels, (uint)byteCount);
+            }
+
+            InitializeDXObjects(this, flags, out _dxtexture, out _dxsrv, out _dxsampler);
+        }
+        public Texture2D(ReadOnlySpan<int> pixels, int width, TextureFlags flags) : this(MemoryMarshal.Cast<int, Color32>(pixels), width, flags) {}
+        public Texture2D(ReadOnlySpan<Color32> pixels, int width, TextureFlags flags) {
+            if (width <= 0 || width > TextureMaximumSize) {
+                width = Math.Clamp(width, 1, TextureMaximumSize);
+                Logger.Warn("Invalid width to create texture. Fallback to " + width);
+            }
+
+            Height = pixels.Length / width;
+            if (Height <= 0) throw new ArgumentOutOfRangeException(nameof(pixels), "Not sufficient enough to make a valid texture as the height of it will be 0");
+
+            Width = width;
+            Flags = flags;
+
+            int byteCount = Width * Height * 4;
+            _pixels = Marshal.AllocHGlobal(byteCount);
+
+            fixed (Color32* pChannels = pixels) {
+                Unsafe.CopyBlock(_pixels.ToPointer(), pChannels, (uint)byteCount);
+            }
+
+            InitializeDXObjects(this, flags, out _dxtexture, out _dxsrv, out _dxsampler);
+        }
+
         public Texture2D(int width, int height, TextureFlags flags) {
-            Logger.WarnAssert(width > 0 && width <= 2048, "Invalid width to create texture. Fallback to 4", () => width = 4);
-            Logger.WarnAssert(height > 0 && height <= 2048, "Invalid height to create texture. Fallback to 4", () => height = 4);
+            if (width <= 0 || width > TextureMaximumSize) {
+                width = Math.Clamp(width, 1, TextureMaximumSize);
+                Logger.Warn("Invalid width to create texture. Fallback to " + width);
+            }
+            if (height <= 0 || height > TextureMaximumSize) {
+                height = Math.Clamp(height, 1, TextureMaximumSize);
+                Logger.Warn("Invalid width to create texture. Fallback to " + height);
+            }
 
             Width = width;
             Height = height;
-
             Flags = flags;
 
             _pixels = Marshal.AllocHGlobal(width * height * 4);
             Unsafe.InitBlock(_pixels.ToPointer(), 0xFF, (uint)(width * height * 4));
 
-            if (IsRenderable) {
-                D3D11_TEXTURE2D_DESC desc = default;
-
-                if (IsWritable) {
-                    desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG.Write;
-                    desc.Usage = D3D11_USAGE.Dynamic;
-                } else {
-                    desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG.None;
-                    desc.Usage = D3D11_USAGE.Default;
-                }
-
-                desc.MipLevels = desc.ArraySize = 1u;
-                desc.Format = DXGI_FORMAT.R8G8B8A8_UNORM;
-                desc.BindFlags = D3D11_BIND_FLAG.ShaderResource;
-                desc.SampleDesc.Count = 1u;
-                desc.Width = (uint)width;
-                desc.Height = (uint)height;
-
-                D3D11_SUBRESOURCE_DATA srd = default;
-
-                srd.pData = _pixels;
-                srd.SysMemPitch = (uint)width;
-
-                var device = Direct3DContext.Device;
-
-                device.CreateTexture2D(desc, &srd, out _dxtexture).ThrowExceptionIfError();
-
-                D3D11_SHADER_RESOURCE_VIEW_DESC vdesc = default;
-                vdesc.Format = desc.Format;
-                vdesc.ViewDimension = D3D11_SRV_DIMENSION.Texture2D;
-                vdesc.Texture2D.MipLevels = 1u;
-                vdesc.Texture2D.MostDetailedMip = 0u;
-
-                device.CreateShaderResourceView(_dxtexture!, &vdesc, out _dxsrv).ThrowExceptionIfError();
-
-                D3D11_SAMPLER_DESC sampler = default;
-                sampler.Filter = D3D11_FILTER.MinMagMipPoint;
-                sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D11_TEXTURE_ADDRESS_MODE.Wrap;
-
-                device.CreateSamplerState(sampler, out _dxsampler).ThrowExceptionIfError();
-            }
+            InitializeDXObjects(this, flags, out _dxtexture, out _dxsrv, out _dxsampler);
         }
 
         public override void Destroy() {
@@ -150,6 +162,56 @@ namespace DirectDimensional.Core {
             }
 
             ctx.Unmap(_dxtexture, 0u);
+        }
+
+        private static void InitializeDXObjects(Texture2D texture, TextureFlags flags, out D3D11Texture2D? outputTexture, out ShaderResourceView? srv, out SamplerState? sampler) {
+            if ((flags & TextureFlags.Render) == TextureFlags.Render) {
+                D3D11_TEXTURE2D_DESC desc = default;
+
+                if ((flags & TextureFlags.Write) == TextureFlags.Write) {
+                    desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG.Write;
+                    desc.Usage = D3D11_USAGE.Dynamic;
+                } else {
+                    desc.CPUAccessFlags = D3D11_CPU_ACCESS_FLAG.None;
+                    desc.Usage = D3D11_USAGE.Default;
+                }
+
+                desc.MipLevels = desc.ArraySize = 1u;
+                desc.Format = DXGI_FORMAT.R8G8B8A8_UNORM;
+                desc.BindFlags = D3D11_BIND_FLAG.ShaderResource;
+                desc.SampleDesc.Count = 1u;
+                desc.Width = (uint)texture.Width;
+                desc.Height = (uint)texture.Height;
+
+                D3D11_SUBRESOURCE_DATA srd = default;
+
+                srd.pData = texture._pixels;
+                srd.SysMemPitch = desc.Width * 4;
+
+                var device = Direct3DContext.Device;
+
+                device.CreateTexture2D(desc, &srd, out outputTexture).ThrowExceptionIfError();
+
+                D3D11_SHADER_RESOURCE_VIEW_DESC vdesc = default;
+                vdesc.Format = desc.Format;
+                vdesc.ViewDimension = D3D11_SRV_DIMENSION.Texture2D;
+                vdesc.Texture2D.MipLevels = 1u;
+                vdesc.Texture2D.MostDetailedMip = 0u;
+
+                device.CreateShaderResourceView(outputTexture!, &vdesc, out srv).ThrowExceptionIfError();
+
+                D3D11_SAMPLER_DESC sd = default;
+                sd.Filter = D3D11_FILTER.MinMagMipPoint;
+                sd.AddressU = sd.AddressV = sd.AddressW = D3D11_TEXTURE_ADDRESS_MODE.Wrap;
+
+                device.CreateSamplerState(sd, out sampler).ThrowExceptionIfError();
+
+                return;
+            }
+
+            outputTexture = null;
+            srv = null;
+            sampler = null;
         }
     }
 }

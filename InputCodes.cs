@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DirectDimensional.Core {
-    public enum InputCode : byte {
+    public enum KeyboardCode : byte {
         Cancel = 0x03,
         Backspace = 0x08,
         Tab,

@@ -23,8 +23,8 @@ namespace DirectDimensional.Core {
             _current[key] = false;
         }
 
-        public static bool KeyPressed(InputCode code) => _current[(byte)code] && !_last[(byte)code];
-        public static bool KeyHeld(InputCode code) => _current[(byte)code];
-        public static bool KeyReleased(InputCode code) => !_current[(byte)code] && _last[(byte)code];
+        public static bool Pressed(KeyboardCode code) => _current[(byte)code] && !_last[(byte)code];
+        public static bool Holding(KeyboardCode code) => _current[(byte)code];
+        public static bool Released(KeyboardCode code) => !_current[(byte)code] && _last[(byte)code];
     }
 }

@@ -1,5 +1,6 @@
 ﻿using DirectDimensional.Bindings.Direct3D11;
 using DirectDimensional.Bindings.DXGI;
+using DirectDimensional.Bindings.WinAPI;
 using DirectDimensional.Bindings;
 using System.Runtime.InteropServices;
 using System.Numerics;
@@ -10,76 +11,69 @@ using D3D11Texture2D = DirectDimensional.Bindings.Direct3D11.Texture2D;
 
 namespace DirectDimensional.Core {
     internal static unsafe class Direct3DContext {
-        public static D3D11Device _device = null!;
-        public static DeviceContext _devctx = null!;
-        public static SwapChain _sw = null!;
+        private static D3D11Device _device = null!;
+        private static DeviceContext _devctx = null!;
+        private static SwapChain _sc = null!;
+
+        private static ComArray<RenderTargetView> _renderOutputs = null!;
 
         public static D3D11Device Device => _device;
         public static DeviceContext DevCtx => _devctx;
-        public static SwapChain SwapChain => _sw;
-
-        private static ComArray<RenderTargetView> _rtvs = null!;
-        public static RenderTargetView BackBuffer => _rtvs[0]!;
-        public static ComArray<RenderTargetView> BackBufferArr => _rtvs;
 
         private static ID3D11Debug _debug = null!;
         private static ID3D11InfoQueue _queue = null!;
 
-        private static ComArray<RenderTargetView> _unbindRTVs;
+        public static SwapChain SwapChain => _sc;
+        public static RenderTargetView RenderingOutput => _renderOutputs[0]!;
+        public static ComArray<RenderTargetView> RenderingOutputAsArray => _renderOutputs;
 
-        static Direct3DContext() {
-            _unbindRTVs = new(8);
-        }
+        private static ComArray<RenderTargetView> _unbindRTVs = null!;
 
         public static void Initialize(IntPtr outputWindow) {
             D3D11_CREATE_DEVICE_FLAG flags = D3D11_CREATE_DEVICE_FLAG.None;
             flags |= D3D11_CREATE_DEVICE_FLAG.Debug;
 
-            var clientSize = Window.Internal_ClientSize;
+            WinAPI.GetClientRect(outputWindow, out var rect);
 
             DXGI_SWAP_CHAIN_DESC swDesc = default;
             swDesc.BufferCount = 2u;
             swDesc.Windowed = true;
             swDesc.SampleDesc.Count = 1u;
             swDesc.SampleDesc.Quality = 0u;
-            swDesc.BufferDesc.Width = (uint)clientSize.Width;
-            swDesc.BufferDesc.Height = (uint)clientSize.Height;
+            swDesc.BufferDesc.Width = (uint)rect.Right;
+            swDesc.BufferDesc.Height = (uint)rect.Bottom;
             swDesc.BufferDesc.Format = DXGI_FORMAT.R8G8B8A8_UNORM;
             swDesc.BufferDesc.RefreshRate.Numerator = 1u;
             swDesc.BufferDesc.RefreshRate.Denominator = 0u;
             swDesc.BufferUsage = DXGI_USAGE.RenderTargetOutput;
-            swDesc.OutputWindow = Window.windowHandle;
+            swDesc.OutputWindow = outputWindow;
             swDesc.SwapEffect = DXGI_SWAP_EFFECT.FlipSequential;
 
-            D3D11.CreateDeviceAndSwapChain(D3D_DRIVER_TYPE.Hardware, IntPtr.Zero, flags, null, swDesc, out _sw!, out _device!, out _, out _devctx!).ThrowExceptionIfError();
+            D3D11.CreateDeviceAndSwapChain(D3D_DRIVER_TYPE.Hardware, IntPtr.Zero, flags, null, swDesc, out _sc!, out _device!, out _, out _devctx!).ThrowExceptionIfError();
 
             _debug = _device.QueryInterface<ID3D11Debug>()!;
             _queue = _device.QueryInterface<ID3D11InfoQueue>()!;
 
             _queue.PushEmptyStorageFilter();
 
-            SwapChain.GetBuffer<D3D11Texture2D>(0, out var outputTexture).ThrowExceptionIfError();
+            _sc.GetBuffer<D3D11Texture2D>(0, out var outputTexture).ThrowExceptionIfError();
             _device.CreateRenderTargetView(outputTexture!, null, out var _rtv).ThrowExceptionIfError();
-            _rtvs = new(_rtv);
+            _renderOutputs = new(_rtv);
 
             outputTexture!.Release();
 
-            DevCtx.RSSetViewport(new D3D11_VIEWPORT {
-                Width = clientSize.Width,
-                Height = clientSize.Height,
-                TopLeftX = 0,
-                TopLeftY = 0,
-                MinDepth = 0,
-                MaxDepth = 1,
-            });
+            ResetFirstViewport(swDesc.BufferDesc.Width, swDesc.BufferDesc.Height);
+
+            _unbindRTVs = new(1);
         }
 
-        public static void DisposeContext() {
+        public static void Shutdown() {
             _unbindRTVs.Dispose();
 
-            _devctx.ClearState();
+            _renderOutputs.TrueDispose();
+            _sc.Release();
 
-            _sw.Release();
+            _devctx.ClearState();
 
             _debug.Release();
             _queue.Release();
@@ -114,23 +108,10 @@ namespace DirectDimensional.Core {
             _queue.ClearStoredMessages();
         }
 
-        public static void ClearBackBuffer() {
-            DevCtx.ClearRenderTargetView(BackBuffer, default);
-        }
-
-        public static void ClearBackBuffer(Vector4 color) {
-            DevCtx.ClearRenderTargetView(BackBuffer, color);
-        }
-
-        public static void SwitchToBackBuffer() {
-            DevCtx.OMSetRenderTargets(_rtvs, null);
-        }
-
-        public static void ResetViewport() {
-            var clientSize = Window.Internal_ClientSize;
+        public static void ResetFirstViewport(float width, float height) {
             DevCtx.RSSetViewport(new D3D11_VIEWPORT {
-                Width = clientSize.Width,
-                Height = clientSize.Height,
+                Width = width,
+                Height = height,
                 TopLeftX = 0,
                 TopLeftY = 0,
                 MinDepth = 0,
@@ -139,20 +120,21 @@ namespace DirectDimensional.Core {
         }
 
         public static void ResizeSwapChain() {
-            if (_sw.Alive()) {
+            if (_sc.Alive()) {
                 _devctx.OMSetRenderTargets(_unbindRTVs, null);
 
-                _rtvs[0].CheckAndRelease();
+                _renderOutputs[0].CheckAndRelease();
 
-                _sw.ResizeBuffer(0, 0, 0, DXGI_FORMAT.Unknown, DXGI_SWAP_CHAIN_FLAG.None).ThrowExceptionIfError();
+                _sc.ResizeBuffer(0, 0, 0, DXGI_FORMAT.Unknown, DXGI_SWAP_CHAIN_FLAG.None).ThrowExceptionIfError();
 
-                _sw.GetBuffer<D3D11Texture2D>(0, out var pTexture).ThrowExceptionIfError();
+                _sc.GetBuffer<D3D11Texture2D>(0, out var pTexture).ThrowExceptionIfError();
                 _device.CreateRenderTargetView(pTexture!, null, out var _rtv).ThrowExceptionIfError();
-                _rtvs[0] = _rtv;
+                _renderOutputs[0] = _rtv;
+
+                var desc = pTexture!.Description;
+                ResetFirstViewport(desc.Width, desc.Height);
 
                 pTexture!.Release();
-
-                ResetViewport();
             }
         }
     }

@@ -3,6 +3,21 @@ using System.Runtime.CompilerServices;
 using System.Numerics;
 
 namespace DirectDimensional.Core.Utilities {
+    public enum EaseFunction {
+        Linear,
+
+        SineIn, SineOut, SineInOut,
+        QuadIn, QuadOut, QuadInOut,
+        CubicIn, CubicOut, CubicInOut,
+        QuartIn, QuartOut, QuartInOut,
+        QuintIn, QuintOut, QuintInOut,
+        ExpoIn, ExpoOut, ExpoInOut,
+        CircIn, CircOut, CircInOut,
+        BackIn, BackOut, BackInOut,
+        ElasticIn, ElasticOut, ElasticInOut,
+        BounceIn, BounceOut, BounceInOut,
+    }
+
     public static class DDMath {
         public const float Deg2Rad = MathF.PI / 180f;
         public const float Rad2Deg = 180f / MathF.PI;
@@ -35,61 +50,13 @@ namespace DirectDimensional.Core.Utilities {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Lerp(float a, float b, float t) {
+            t = Saturate(t);
             return a + (b - a) * t;
         }
 
-        public static Vector2 Curve(in Vector2 start, in Vector2 control, in Vector2 end, float t) {
-            t = Saturate(t);
-            float _t = 1f - t;
-
-            return _t * _t * start + 2 * t * _t * control + t * t * end;
-        }
-        public static Vector3 Curve(in Vector3 start, in Vector3 control, in Vector3 end, float t) {
-            t = Saturate(t);
-            float _t = 1f - t;
-
-            return _t * _t * start + 2 * t * _t * control + t * t * end;
-        }
-        public static Vector2 Curve(in Vector2 start, in Vector2 startC, in Vector2 endC, in Vector2 end, float t) {
-            t = Saturate(t);
-            float _t = 1 - t;
-
-            return
-                _t * _t * _t * start +
-                3 * _t * _t * t * startC +
-                3 * _t * t * t * endC +
-                t * t * t * end;
-        }
-        public static Vector3 Curve(in Vector3 start, in Vector3 startC, in Vector3 endC, in Vector3 end, float t) {
-            t = Saturate(t);
-            float _t = 1 - t;
-
-            return
-                _t * _t * _t * start +
-                3 * _t * _t * t * startC +
-                3 * _t * t * t * endC +
-                t * t * t * end;
-        }
-
-        public static Vector2 CurveDerivative(in Vector2 start, in Vector2 control, in Vector2 end, float t) {
-            t = Saturate(t);
-            return 2f * (1f - t) * (control - start) + 2f * t * (end - control);
-        }
-        public static Vector3 CurveDerivative(in Vector3 start, in Vector3 control, in Vector3 end, float t) {
-            t = Saturate(t);
-            return 2f * (1f - t) * (control - start) + 2f * t * (end - control);
-        }
-        public static Vector2 CurveDerivative(in Vector2 start, in Vector2 startC, in Vector2 endC, in Vector2 end, float t) {
-            t = Saturate(t);
-            float _t = 1 - t;
-
-            return 3 * _t * _t * (startC - start) + 6 * _t * t * (endC - startC) + 3 * t * t * (end - endC);
-        }
-        public static Vector3 CurveDerivative(in Vector3 start, in Vector3 startC, in Vector3 endC, in Vector3 end, float t) {
-            t = Saturate(t);
-            float _t = 1 - t;
-
-            return 3 * _t * _t * (startC - start) + 6 * _t * t * (endC - startC) + 3 * t * t * (end - endC);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float LerpUnclamped(float a, float b, float t) {
+            return a + (b - a) * t;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -141,7 +108,14 @@ namespace DirectDimensional.Core.Utilities {
             return MathF.Abs(a - b) <= delta;
         }
 
-        public static Vector2 MoveTowards(in Vector2 from, in Vector2 to, float delta) {
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static bool Between(this int value, int min, int max) => min <= value && value <= max;
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static bool Between(this float value, float min, float max) => min <= value && value <= max;
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static bool Between(this double value, double min, double max) => min <= value && value <= max;
+
+        public static Vector2 MoveTowards(Vector2 from, Vector2 to, float delta) {
             Vector2 displacement = to - from;
             float dist = displacement.Length();
 
@@ -150,96 +124,16 @@ namespace DirectDimensional.Core.Utilities {
             return from + displacement * delta;
         }
 
-        public static float ArcLength(in Vector2 from, in Vector2 control, in Vector2 end, int segments) {
-            float step = 1f / segments;
-
-            float ret = 0;
-            float curr = 0;
-            Vector2 lastPos = from;
-
-            for (int i = 0; i < segments; i++) {
-                Vector2 currPos = Curve(from, control, end, curr + step);
-
-                ret += (currPos - lastPos).Length();
-
-                lastPos = currPos;
-
-                curr += step;
-            }
-
-            return ret;
-        }
-
-        public static float ArcLength(in Vector2 from, in Vector2 controlS, in Vector2 controlE, in Vector2 end, int segments) {
-            float step = 1f / segments;
-
-            float ret = 0;
-            float curr = 0;
-            Vector2 lastPos = from;
-
-            for (int i = 0; i < segments; i++) {
-                Vector2 currPos = Curve(from, controlS, controlE, end, curr + step);
-
-                ret += (currPos - lastPos).Length();
-
-                lastPos = currPos;
-
-                curr += step;
-            }
-
-            return ret;
-        }
-
-        public static float ArcLength(Vector3 from, Vector3 control, Vector3 end, int segments) {
-            float step = 1f / segments;
-
-            float ret = 0;
-            float curr = 0;
-            Vector3 lastPos = from;
-
-            for (int i = 0; i < segments; i++) {
-                Vector3 currPos = Curve(from, control, end, curr + step);
-
-                ret += (currPos - lastPos).Length();
-
-                lastPos = currPos;
-                curr += step;
-            }
-
-            return ret;
-        }
-
-        public static float ArcLength(in Vector3 from, in Vector3 controlS, in Vector3 controlE, in Vector3 end, int segments) {
-            float step = 1f / segments;
-
-            float ret = 0;
-            float curr = 0;
-            Vector3 lastPos = from;
-
-            for (int i = 0; i < segments; i++) {
-                Vector3 currPos = Curve(from, controlS, controlE, end, curr + step);
-
-                ret += (currPos - lastPos).Length();
-
-                lastPos = currPos;
-
-                curr += step;
-            }
-
-            return ret;
-        }
-
-        public static float NormalizeUnclamped(float value, float min, float max) {
-            return (value - min) / (max - min);
-        }
-
         public static float Normalize(float value, float min, float max) {
-            value = Math.Clamp(value, min, max);
             return (value - min) / (max - min);
         }
 
         public static float Remap(float value, float inmin, float inmax, float outmin, float outmax) {
             return outmin + (value - inmin) * (outmax - outmin) / (inmax - inmin);
+        }
+
+        public static int Remap(int value, int inmin, int inmax, int outmin, int outmax) {
+            return (int)MathF.Round((float)outmin + (value - inmin) * (outmax - outmin) / (inmax - inmin));
         }
 
         public static Vector2 PolarToCartesian(float radian, float radius) {
@@ -252,7 +146,7 @@ namespace DirectDimensional.Core.Utilities {
             return (MathF.Atan2(position.Y, position.X), position.Length());
         }
 
-        public static Vector3 Project(in Vector3 vector, in Vector3 normal) {
+        public static Vector3 Project(Vector3 vector, Vector3 normal) {
             float sqrMag = normal.LengthSquared();
             if (sqrMag < 0.0000001f) return Vector3.Zero;
 
@@ -261,19 +155,19 @@ namespace DirectDimensional.Core.Utilities {
             return dot / sqrMag * normal;
         }
 
-        public static Vector2 Reflect(in Vector2 vector, in Vector2 normal) {
+        public static Vector2 Reflect(Vector2 vector, Vector2 normal) {
             return vector - 2f * Vector2.Dot(vector, normal) * normal;
         }
 
-        public static Vector3 Reflect(in Vector3 vector, in Vector3 normal) {
+        public static Vector3 Reflect(Vector3 vector, Vector3 normal) {
             return vector - 2f * Vector3.Dot(vector, normal) * normal;
         }
 
-        public static Vector2 Mirror(in Vector2 vector, in Vector2 anchor) {
+        public static Vector2 Mirror(Vector2 vector, Vector2 anchor) {
             return anchor + (anchor - vector);
         }
 
-        public static Vector3 Mirror(in Vector3 vector, in Vector3 anchor) {
+        public static Vector3 Mirror(Vector3 vector, Vector3 anchor) {
             return anchor + (anchor - vector);
         }
 
@@ -294,22 +188,22 @@ namespace DirectDimensional.Core.Utilities {
             return new Vector2((cos * tx) - (sin * ty), (sin * tx) + (cos * ty));
         }
 
-        public static Vector2 NormalizeAndLength(in Vector2 vector, out float length) {
+        public static Vector2 NormalizeAndLength(Vector2 vector, out float length) {
             length = vector.Length();
             return vector / length;
         }
 
-        public static Vector3 NormalizeAndLength(in Vector3 vector, out float length) {
+        public static Vector3 NormalizeAndLength(Vector3 vector, out float length) {
             length = vector.Length();
             return vector / length;
         }
 
-        public static Vector4 NormalizeAndLength(in Vector4 vector, out float length) {
+        public static Vector4 NormalizeAndLength(Vector4 vector, out float length) {
             length = vector.Length();
             return vector / length;
         }
 
-        public static Matrix4x4 LookToLH(in Vector3 position, in Vector3 direction, in Vector3 up) {
+        public static Matrix4x4 LookToLH(Vector3 position, Vector3 direction, Vector3 up) {
             Vector3 zaxis = Vector3.Normalize(direction);
             Vector3 xaxis = Vector3.Normalize(Vector3.Cross(up, zaxis));
             Vector3 yaxis = Vector3.Cross(zaxis, xaxis);
@@ -377,5 +271,445 @@ namespace DirectDimensional.Core.Utilities {
         public static Vector2 V2(this Vector4 vec) => new(vec.X, vec.Y);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 V3(this Vector4 vec) => new(vec.X, vec.Y, vec.Z);
+
+        public static float ExpoDecay(float value, float t, float decay) {
+            return value * MathF.Exp(-decay * t);
+        }
+
+        public static float LinearToGamma(float linear) {
+            return MathF.Pow(linear, 1 / 2.2f);
+        }
+
+        public static float GammaToLinear(float gamma) {
+            return MathF.Pow(gamma, 2.2f);
+        }
+
+        public static float Round(float value, float snap) {
+            var inv = 1 / snap;
+            return MathF.Round(value * inv, MidpointRounding.AwayFromZero) / inv;
+        }
+
+        public static double Round(double value, float snap) {
+            var inv = 1 / snap;
+            return Math.Round(value * inv, MidpointRounding.AwayFromZero) / inv;
+        }
+
+        public static class Curve {
+            public static class BezierQuad {
+                public static Vector2 Evaluate(Vector2 start, Vector2 control, Vector2 end, float t) {
+                    float _t = 1f - t;
+
+                    return _t * _t * start + 2 * t * _t * control + t * t * end;
+                }
+                public static Vector3 Evaluate(Vector3 start, Vector3 control, Vector3 end, float t) {
+                    float _t = 1f - t;
+
+                    return _t * _t * start + 2 * t * _t * control + t * t * end;
+                }
+                public static Vector4 Evaluate(Vector4 start, Vector4 control, Vector4 end, float t) {
+                    float _t = 1f - t;
+
+                    return _t * _t * start + 2 * t * _t * control + t * t * end;
+                }
+
+                public static Vector2 Velocity(Vector2 start, Vector2 control, Vector2 end, float t) {
+                    t = Saturate(t);
+                    return 2f * ((1f - t) * (control - start) + t * (end - control));
+                }
+                public static Vector3 Velocity(Vector3 start, Vector3 control, Vector3 end, float t) {
+                    t = Saturate(t);
+                    return 2f * ((1f - t) * (control - start) + t * (end - control));
+                }
+                public static Vector4 Velocity(Vector4 start, Vector4 control, Vector4 end, float t) {
+                    t = Saturate(t);
+                    return 2f * ((1f - t) * (control - start) + t * (end - control));
+                }
+
+                public static float ArcLength(Vector2 from, Vector2 control, Vector2 end, int segments) {
+                    float step = 1f / segments;
+
+                    float ret = 0;
+                    float curr = 0;
+                    Vector2 lastPos = from;
+
+                    for (int i = 0; i < segments; i++) {
+                        Vector2 currPos = Evaluate(from, control, end, curr + step);
+
+                        ret += (currPos - lastPos).Length();
+
+                        lastPos = currPos;
+
+                        curr += step;
+                    }
+
+                    return ret;
+                }
+                public static float ArcLength(Vector3 from, Vector3 control, Vector3 end, int segments) {
+                    float step = 1f / segments;
+
+                    float ret = 0;
+                    float curr = 0;
+                    Vector3 lastPos = from;
+
+                    for (int i = 0; i < segments; i++) {
+                        Vector3 currPos = Evaluate(from, control, end, curr + step);
+
+                        ret += (currPos - lastPos).Length();
+
+                        lastPos = currPos;
+
+                        curr += step;
+                    }
+
+                    return ret;
+                }
+                public static float ArcLength(Vector4 from, Vector4 control, Vector4 end, int segments) {
+                    float step = 1f / segments;
+
+                    float ret = 0;
+                    float curr = 0;
+                    Vector4 lastPos = from;
+
+                    for (int i = 0; i < segments; i++) {
+                        Vector4 currPos = Evaluate(from, control, end, curr + step);
+
+                        ret += (currPos - lastPos).Length();
+
+                        lastPos = currPos;
+
+                        curr += step;
+                    }
+
+                    return ret;
+                }
+            }
+            public static class BezierCubic {
+                public static Vector2 Evaluate(Vector2 start, Vector2 startControl, Vector2 endControl, Vector2 end, float t) {
+                    float _t = 1 - t;
+
+                    return
+                        _t * _t * _t * start +
+                        3 * _t * _t * t * startControl +
+                        3 * _t * t * t * endControl +
+                        t * t * t * end;
+                }
+                public static Vector3 Evaluate(Vector3 start, Vector3 startControl, Vector3 endControl, Vector3 end, float t) {
+                    float _t = 1 - t;
+
+                    return
+                        _t * _t * _t * start +
+                        3 * _t * _t * t * startControl +
+                        3 * _t * t * t * endControl +
+                        t * t * t * end;
+                }
+                public static Vector4 Evaluate(Vector4 start, Vector4 startControl, Vector4 endControl, Vector4 end, float t) {
+                    float _t = 1 - t;
+
+                    return
+                        _t * _t * _t * start +
+                        3 * _t * _t * t * startControl +
+                        3 * _t * t * t * endControl +
+                        t * t * t * end;
+                }
+
+                public static Vector2 Velocity(Vector2 start, Vector2 startControl, Vector2 endControl, Vector2 end, float t) {
+                    t = Saturate(t);
+                    float _t = 1 - t;
+                    return 3 * _t * _t * (startControl - start) + 6 * _t * t * (endControl - startControl) + 3 * t * t * (end - endControl);
+                }
+                public static Vector3 Velocity(Vector3 start, Vector3 startControl, Vector3 endControl, Vector3 end, float t) {
+                    t = Saturate(t);
+                    float _t = 1 - t;
+                    return 3 * _t * _t * (startControl - start) + 6 * _t * t * (endControl - startControl) + 3 * t * t * (end - endControl);
+                }
+                public static Vector4 Velocity(Vector4 start, Vector4 startControl, Vector4 endControl, Vector4 end, float t) {
+                    t = Saturate(t);
+                    float _t = 1 - t;
+                    return 3 * (_t * _t * (startControl - start) + 2 * _t * t * (endControl - startControl) + t * t * (end - endControl));
+                }
+
+                //public static Vector2 Acceleration(Vector2 start, Vector2 startControl, Vector2 endControl, Vector2 end, float t) {
+                //    t = Saturate(t);
+                //    return 6 * (t * (end + 3 * (startControl - endControl) - start) + (start - 2 * startControl + endControl));
+                //}
+
+                public static float ArcLength(Vector2 from, Vector2 startControl, Vector2 endControl, Vector2 end, int segments) {
+                    float step = 1f / segments;
+
+                    float ret = 0;
+                    float curr = 0;
+                    Vector2 lastPos = from;
+
+                    for (int i = 0; i < segments; i++) {
+                        Vector2 currPos = Evaluate(from, startControl, endControl, end, curr + step);
+
+                        ret += (currPos - lastPos).Length();
+
+                        lastPos = currPos;
+
+                        curr += step;
+                    }
+
+                    return ret;
+                }
+                public static float ArcLength(Vector3 from, Vector3 startControl, Vector3 endControl, Vector3 end, int segments) {
+                    float step = 1f / segments;
+
+                    float ret = 0;
+                    float curr = 0;
+                    Vector3 lastPos = from;
+
+                    for (int i = 0; i < segments; i++) {
+                        Vector3 currPos = Evaluate(from, startControl, endControl, end, curr + step);
+
+                        ret += (currPos - lastPos).Length();
+
+                        lastPos = currPos;
+
+                        curr += step;
+                    }
+
+                    return ret;
+                }
+                public static float ArcLength(Vector4 from, Vector4 startControl, Vector4 endControl, Vector4 end, int segments) {
+                    float step = 1f / segments;
+
+                    float ret = 0;
+                    float curr = 0;
+                    Vector4 lastPos = from;
+
+                    for (int i = 0; i < segments; i++) {
+                        Vector4 currPos = Evaluate(from, startControl, endControl, end, curr + step);
+
+                        ret += (currPos - lastPos).Length();
+
+                        lastPos = currPos;
+
+                        curr += step;
+                    }
+
+                    return ret;
+                }
+            }
+        }
+
+        public static float Ease(float x, EaseFunction type) {
+            return type switch {
+                EaseFunction.SineIn => Easing.Sine.In(x),
+                EaseFunction.SineOut => Easing.Sine.Out(x),
+                EaseFunction.SineInOut => Easing.Sine.InOut(x),
+
+                EaseFunction.QuadIn => Easing.Quad.In(x),
+                EaseFunction.QuadOut => Easing.Quad.Out(x),
+                EaseFunction.QuadInOut => Easing.Quad.InOut(x),
+
+                EaseFunction.CubicIn => Easing.Cubic.In(x),
+                EaseFunction.CubicOut => Easing.Cubic.Out(x),
+                EaseFunction.CubicInOut => Easing.Cubic.InOut(x),
+
+                EaseFunction.QuartIn => Easing.Quart.In(x),
+                EaseFunction.QuartOut => Easing.Quart.Out(x),
+                EaseFunction.QuartInOut => Easing.Quart.InOut(x),
+
+                EaseFunction.QuintIn => Easing.Quint.In(x),
+                EaseFunction.QuintOut => Easing.Quint.Out(x),
+                EaseFunction.QuintInOut => Easing.Quint.InOut(x),
+
+                EaseFunction.ExpoIn => Easing.Expo.In(x),
+                EaseFunction.ExpoOut => Easing.Expo.Out(x),
+                EaseFunction.ExpoInOut => Easing.Expo.InOut(x),
+
+                EaseFunction.CircIn => Easing.Circ.In(x),
+                EaseFunction.CircOut => Easing.Circ.Out(x),
+                EaseFunction.CircInOut => Easing.Circ.InOut(x),
+
+                EaseFunction.BackIn => Easing.Back.In(x),
+                EaseFunction.BackOut => Easing.Back.Out(x),
+                EaseFunction.BackInOut => Easing.Back.InOut(x),
+
+                EaseFunction.ElasticIn => Easing.Elastic.In(x),
+                EaseFunction.ElasticOut => Easing.Elastic.Out(x),
+                EaseFunction.ElasticInOut => Easing.Elastic.InOut(x),
+
+                EaseFunction.BounceIn => Easing.Bounce.In(x),
+                EaseFunction.BounceOut => Easing.Bounce.Out(x),
+                EaseFunction.BounceInOut => Easing.Bounce.InOut(x),
+
+                _ => x,
+            };
+        }
+        public static class Easing {
+            public static class Sine {
+                public static float In(float x) {
+                    return 1 - MathF.Cos(MathF.PI / 2 * x);
+                }
+
+                public static float Out(float x) {
+                    return MathF.Sin(MathF.PI / 2 * x);
+                }
+
+                public static float InOut(float x) {
+                    return -(MathF.Cos(x * MathF.PI) - 1) / 2;
+                }
+            }
+
+            public static class Quad {
+                public static float In(float x) {
+                    return x * x;
+                }
+
+                public static float Out(float x) {
+                    return 1 - (1 - x) * (1 - x);
+                }
+
+                public static float InOut(float x) {
+                    var p = -2 * x + 2;
+                    return x < 0.5f ? 2 * x * x : 1 - p * p / 2;
+                }
+            }
+
+            public static class Cubic {
+                public static float In(float x) {
+                    return x * x * x;
+                }
+
+                public static float Out(float x) {
+                    float _x = 1 - x;
+                    return 1 - _x * _x * _x;
+                }
+
+                public static float InOut(float x) {
+                    var p = -2 * x + 2;
+                    return x < 0.5f ? (4 * x * x * x) : 1 - p * p * p / 2;
+                }
+            }
+
+            public static class Quart {
+                public static float In(float x) {
+                    return x * x * x * x;
+                }
+
+                public static float Out(float x) {
+                    float _x = 1 - x;
+                    return 1 - _x * _x * _x * _x;
+                }
+
+                public static float InOut(float x) {
+                    var p = -2 * x + 2;
+                    return x < 0.5f ? 8 * x * x * x * x : 1 - p * p * p * p / 2;
+                }
+            }
+
+            public static class Quint {
+                public static float In(float x) {
+                    return x * x * x * x * x;
+                }
+
+                public static float Out(float x) {
+                    float _x = 1 - x;
+                    return 1 - _x * _x * _x * _x * _x;
+                }
+
+                public static float InOut(float x) {
+                    var p = -2 * x + 2;
+                    return x < 0.5f ? 16 * x * x * x * x * x : 1 - p * p * p * p * p / 2;
+                }
+            }
+
+            public static class Expo {
+                public static float In(float x) {
+                    return x == 0 ? 0 : MathF.Pow(2, 10 * x - 10);
+                }
+
+                public static float Out(float x) {
+                    return x == 1 ? 1 : 1 - MathF.Pow(2, -10 * x);
+                }
+
+                public static float InOut(float x) {
+                    return x == 0 ? 0 : (x == 1 ? 1 : (x < 0.5 ? MathF.Pow(2, 20 * x - 10) / 2 : (2 - MathF.Pow(2, -20 * x + 10)) / 2));
+                }
+            }
+
+            public static class Circ {
+                public static float In(float x) {
+                    return 1 - MathF.Sqrt(1 - x * x);
+                }
+
+                public static float Out(float x) {
+                    return MathF.Sqrt(1 - (x - 1) * (x - 1));
+                }
+
+                public static float InOut(float x) {
+                    if (x < 0.5f)
+                        return (1 - MathF.Sqrt(1 - 4 * x * x)) / 2;
+
+                    var p = -2 * x + 2;
+                    return (MathF.Sqrt(1 - p * p) + 1) / 2;
+                }
+            }
+
+            public static class Back {
+                public static float In(float x) {
+                    return 2.70158f * x * x * x - 1.70158f * x * x;
+                }
+
+                public static float Out(float x) {
+                    float s = x - 1;
+                    return 1 + 2.70158f * s * s * s + 1.70158f * s * s;
+                }
+
+                public static float InOut(float x) {
+                    float c2 = 2.5949095f;
+
+                    if (x < 0.5f)
+                        return 4 * x * x * ((c2 + 1) * 2 * x - c2) / 2;
+
+                    float s = 2 * x - 2;
+                    return (s * s * ((c2 + 1) * s + c2) + 2) / 2f;
+                }
+            }
+
+            public static class Elastic {
+                public static float In(float x) {
+                    return x == 0 ? 0 : (x == 1 ? 1 : -MathF.Pow(2, 10 * x - 10) * MathF.Sin((x * 10 - 10.75f) * 2 * MathF.PI / 3));
+                }
+
+                public static float Out(float x) {
+                    return x == 0 ? 0 : (x == 1 ? 1 : MathF.Pow(2, -10 * x) * MathF.Sin((x * 10 - 0.75f) * 2 * MathF.PI / 3) + 1);
+                }
+
+                public static float InOut(float x) {
+                    float c = 2 * MathF.PI / 4.5f;
+
+                    float sin = MathF.Sin((20 * x - 11.125f) * c);
+                    return x == 0 ? 0 : (x == 1 ? 1 : (x < 0.5f ? -(MathF.Pow(2, 20 * x - 10) * sin) / 2 : MathF.Pow(2, -20 * x + 10) * sin / 2 + 1));
+                }
+            }
+
+            public static class Bounce {
+                public static float In(float x) {
+                    return 1 - Out(1 - x);
+                }
+
+                public static float Out(float x) {
+                    var n1 = 7.5625f;
+                    var d1 = 2.75f;
+
+                    if (x < 1 / d1) {
+                        return n1 * x * x;
+                    } else if (x < 2 / d1) {
+                        return n1 * (x -= 1.5f / d1) * x + 0.75f;
+                    } else if (x < 2.5f / d1) {
+                        return n1 * (x -= 2.25f / d1) * x + 0.9375f;
+                    } else {
+                        return n1 * (x -= 2.625f / d1) * x + 0.984375f;
+                    }
+                }
+
+                public static float InOut(float x) {
+                    return x < 0.5f ? (1 - Out(1 - 2 * x)) / 2 : (1 + Out(2 * x - 1)) / 2;
+                }
+            }
+        }
     }
 }

@@ -1,7 +1,12 @@
 ﻿using System;
 using System.Numerics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DirectDimensional.Core {
+    public enum MouseButton {
+        Left, Right, Middle,
+    }
+
     public static class Mouse {
         private static int _currX, _currY, _lastX, _lastY;
 
@@ -13,9 +18,13 @@ namespace DirectDimensional.Core {
 
         private static bool _currInsideWnd, _lastInsideWnd;
 
+        private static Vector2 _rawMove;
+
         internal static void UpdateLastStates() {
             _lastX = _currX;
             _lastY = _currY;
+
+            _rawMove = Vector2.Zero;
 
             _lastLM = _currLM;
             _lastRM = _currRM;
@@ -29,6 +38,10 @@ namespace DirectDimensional.Core {
         internal static void RegisterMouseMove(int newX, int newY) {
             _currX = newX;
             _currY = newY;
+        }
+
+        internal static void RegisterMouseRaw(int newX, int newY) {
+            _rawMove += new Vector2(newX, newY);
         }
 
         internal static void RegisterMouseWheel(int sign) {
@@ -67,10 +80,10 @@ namespace DirectDimensional.Core {
             _currInsideWnd = false;
         }
 
-        public static (int X, int Y) MousePosition2 => (_currX, _currY);
-        public static Vector2 MousePosition => new(_currX, _currY);
+        public static (int X, int Y) Position2 => (_currX, _currY);
+        public static Vector2 Position => new(_currX, _currY);
 
-        public static int MouseWheel => _wheelSign;
+        public static int Wheel => _wheelSign;
         public static bool InsideWindow => _currInsideWnd;
 
         public static bool LeftPressed => _currLM && !_lastLM;
@@ -85,7 +98,33 @@ namespace DirectDimensional.Core {
         public static bool MiddleReleased => !_currMM && _lastMM;
         public static bool MiddleHeld => _currMM;
 
-        public static (int X, int Y) MouseMoveDelta2 => (_currX - _lastX, _currY - _lastY);
-        public static Vector2 MouseMoveDelta => new(_currX - _lastX, _currY - _lastY);
+        public static bool Pressed(MouseButton btn) {
+            return btn switch {
+                MouseButton.Right => RightPressed,
+                MouseButton.Middle => MiddlePressed,
+                _ => LeftPressed,
+            };
+        }
+
+        public static bool Holding(MouseButton btn) {
+            return btn switch {
+                MouseButton.Right => RightHeld,
+                MouseButton.Middle => MiddleHeld,
+                _ => LeftHeld,
+            };
+        }
+
+        public static bool Released(MouseButton btn) {
+            return btn switch {
+                MouseButton.Right => RightReleased,
+                MouseButton.Middle => MiddleReleased,
+                _ => LeftReleased,
+            };
+        }
+
+        public static Vector2 Move => new(_currX - _lastX, _currY - _lastY);
+        public static (int X, int Y) Move2 => (_currX - _lastX, _currY - _lastY);
+
+        public static Vector2 MoveRaw => _rawMove;
     }
 }

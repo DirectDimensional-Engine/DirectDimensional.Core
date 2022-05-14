@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using DirectDimensional.Core.Utilities;
 
 namespace DirectDimensional.Core {
     public struct Color : IEquatable<Color>, IFormattable {
@@ -9,12 +10,32 @@ namespace DirectDimensional.Core {
         public float B { get; set; }
         public float A { get; set; }
 
+        public float Grayscale => 0.299f * R + 0.587f * G + 0.114f * B;
+        public Color GrayscaleColor {
+            get {
+                var gs = Grayscale;
+                return new(gs, gs, gs, A);
+            }
+        }
+        public Color Gamma2Linear => new(DDMath.GammaToLinear(R), DDMath.GammaToLinear(G), DDMath.GammaToLinear(B), DDMath.GammaToLinear(A));
+        public Color Linear2Gamma => new(DDMath.LinearToGamma(R), DDMath.LinearToGamma(G), DDMath.LinearToGamma(B), DDMath.LinearToGamma(A));
+
         public Color(float r, float g, float b) {
             R = r; G = g; B = b; A = 1;
         }
 
         public Color(float r, float g, float b, float a) {
             R = r; G = g; B = b; A = a;
+        }
+
+        public Color WithRed(float r) => new(r, G, B, A);
+        public Color WithGreen(float g) => new(R, g, B, A);
+        public Color WithBlue(float b) => new(R, G, b, A);
+        public Color WithAlpha(float a) => new(R, G, B, a);
+
+        public static Color Lerp(Color left, Color right, float t) {
+            t = DDMath.Saturate(t);
+            return new Color(DDMath.LerpUnclamped(left.R, right.R, t), DDMath.LerpUnclamped(left.G, right.G, t), DDMath.LerpUnclamped(left.B, right.B, t), DDMath.LerpUnclamped(left.A, right.A, t));
         }
 
         public static implicit operator Color32(Color color) {
@@ -30,7 +51,7 @@ namespace DirectDimensional.Core {
         }
 
         public override int GetHashCode() {
-            return R.GetHashCode() ^ (G.GetHashCode() << 2) ^ (B.GetHashCode() >> 3) ^ (A.GetHashCode() << 1);
+            return HashCode.Combine(R, G, B, A);
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj) {
@@ -254,6 +275,22 @@ namespace DirectDimensional.Core {
             Integer = 0;
 
             Unsigned = unsigned;
+        }
+
+        public Color32 WithRed(byte r) => new(r, G, B, A);
+        public Color32 WithGreen(byte g) => new(R, g, B, A);
+        public Color32 WithBlue(byte b) => new(R, G, b, A);
+        public Color32 WithAlpha(byte a) => new(R, G, B, a);
+
+        public static Color32 Lerp(Color32 left, Color32 right, float t) {
+            t = DDMath.Saturate(t);
+
+            var r = (byte)MathF.Round(DDMath.Lerp(left.R, right.R, t));
+            var g = (byte)MathF.Round(DDMath.Lerp(left.G, right.G, t));
+            var b = (byte)MathF.Round(DDMath.Lerp(left.B, right.B, t));
+            var a = (byte)MathF.Round(DDMath.Lerp(left.A, right.A, t));
+
+            return new Color32(r, g, b, a);
         }
 
         public static implicit operator Color(Color32 color) {
