@@ -25,83 +25,102 @@ namespace DirectDimensional.Core.Utilities {
         /// <summary>
         /// Wrap a float value between [<c>low</c>, <c>high</c>)
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Wrap(float value, float low, float high) {
             float d = high - low;
-
             return low + (((value - low) % d) + d) % d;
         }
 
         /// <summary>
         /// Wrap an integer value between [<c>low</c>, <c>high</c>)
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static int Wrap(int value, int low, int high) {
             int d = high - low;
-
             return low + (((value - low) % d) + d) % d;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Wrap(float value, float length) {
             return ((value % length) + length) % length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static int Wrap(int value, int length) {
             return ((value % length) + length) % length;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Lerp(float a, float b, float t) {
             t = Saturate(t);
             return a + (b - a) * t;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float LerpUnclamped(float a, float b, float t) {
             return a + (b - a) * t;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float InverseLerp(float value, float a, float b) {
-            if (a == b) return 0;
-
             return (value - a) / (b - a);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Bias(float value, float bias) {
             return value / ((1f / bias - 2f) * (1f - value) + 1f);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static int Pulse(float value, float a, float b) {
             return (a <= value && value <= b) ? 1 : 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Saw(float value, float magnitude) {
             return (value - MathF.Floor(value)) * magnitude;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Gamma(float value, float gamma) {
             return MathF.Pow(value, 1 / gamma);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Sigmoid(float x) {
             return 1 / (1 + MathF.Exp(-x));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float SmoothStep(float a, float b, float x) {
             x = Math.Clamp((x - a) / (b - a), 0, 1);
 
             return x * x * (3 - 2 * x);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Saturate(float x) {
             return Math.Clamp(x, 0, 1);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static double Saturate(double x) {
             return Math.Clamp(x, 0, 1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static Vector2 Saturate(Vector2 vec) {
+            return Vector2.Clamp(vec, Vector2.Zero, Vector2.One);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static Vector3 Saturate(Vector3 vec) {
+            return Vector3.Clamp(vec, Vector3.Zero, Vector3.One);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static Vector4 Saturate(Vector4 vec) {
+            return Vector4.Clamp(vec, Vector4.Zero, Vector4.One);
         }
 
         public static bool Approximate(float a, float b, float delta = 0.01f) {
@@ -117,35 +136,36 @@ namespace DirectDimensional.Core.Utilities {
 
         public static Vector2 MoveTowards(Vector2 from, Vector2 to, float delta) {
             Vector2 displacement = to - from;
-            float dist = displacement.Length();
+            float dist = displacement.LengthSquared();
 
-            if (dist <= delta) return to;
+            if (dist <= delta * delta) return to;
 
             return from + displacement * delta;
         }
 
-        public static float Normalize(float value, float min, float max) {
-            return (value - min) / (max - min);
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Remap(float value, float inmin, float inmax, float outmin, float outmax) {
             return outmin + (value - inmin) * (outmax - outmin) / (inmax - inmin);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static int Remap(int value, int inmin, int inmax, int outmin, int outmax) {
             return (int)MathF.Round((float)outmin + (value - inmin) * (outmax - outmin) / (inmax - inmin));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector2 PolarToCartesian(float radian, float radius) {
             var (Sin, Cos) = MathF.SinCos(radian);
 
             return new Vector2(Cos * radius, Sin * radius);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static (float Angle, float Radius) CartesianToPolar(Vector2 position) {
             return (MathF.Atan2(position.Y, position.X), position.Length());
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector3 Project(Vector3 vector, Vector3 normal) {
             float sqrMag = normal.LengthSquared();
             if (sqrMag < 0.0000001f) return Vector3.Zero;
@@ -155,22 +175,27 @@ namespace DirectDimensional.Core.Utilities {
             return dot / sqrMag * normal;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector2 Reflect(Vector2 vector, Vector2 normal) {
             return vector - 2f * Vector2.Dot(vector, normal) * normal;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector3 Reflect(Vector3 vector, Vector3 normal) {
             return vector - 2f * Vector3.Dot(vector, normal) * normal;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector2 Mirror(Vector2 vector, Vector2 anchor) {
             return anchor + (anchor - vector);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector3 Mirror(Vector3 vector, Vector3 anchor) {
             return anchor + (anchor - vector);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static void RotateThis(this Vector2 v, float rad) {
             (float sin, float cos) = MathF.SinCos(rad);
 
@@ -180,6 +205,7 @@ namespace DirectDimensional.Core.Utilities {
             v.Y = (sin * tx) + (cos * ty);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector2 Rotate(this Vector2 v, float rad) {
             (float sin, float cos) = MathF.SinCos(rad);
 
@@ -188,16 +214,19 @@ namespace DirectDimensional.Core.Utilities {
             return new Vector2((cos * tx) - (sin * ty), (sin * tx) + (cos * ty));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector2 NormalizeAndLength(Vector2 vector, out float length) {
             length = vector.Length();
             return vector / length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector3 NormalizeAndLength(Vector3 vector, out float length) {
             length = vector.Length();
             return vector / length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static Vector4 NormalizeAndLength(Vector4 vector, out float length) {
             length = vector.Length();
             return vector / length;
@@ -272,14 +301,17 @@ namespace DirectDimensional.Core.Utilities {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 V3(this Vector4 vec) => new(vec.X, vec.Y, vec.Z);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float ExpoDecay(float value, float t, float decay) {
             return value * MathF.Exp(-decay * t);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float LinearToGamma(float linear) {
             return MathF.Pow(linear, 1 / 2.2f);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float GammaToLinear(float gamma) {
             return MathF.Pow(gamma, 2.2f);
         }
@@ -292,6 +324,32 @@ namespace DirectDimensional.Core.Utilities {
         public static double Round(double value, float snap) {
             var inv = 1 / snap;
             return Math.Round(value * inv, MidpointRounding.AwayFromZero) / inv;
+        }
+
+        /// <summary>
+        /// Calculate Quadratic Equation (ax^2 + bx + c = 0)
+        /// </summary>
+        /// <param name="a">First coefficients of x^2 (a)</param>
+        /// <param name="b">Second coefficients of x (b)</param>
+        /// <param name="c">Third coefficients (c)</param>
+        /// <param name="x0">Result which subtract delta</param>
+        /// <param name="x1">Result which add delta</param>
+        /// <param name="delta">Square root of b^2 - 4ac</param>
+        /// <exception cref="ArgumentOutOfRangeException">First coefficient is 0</exception>
+        public static void QuadraticEquation(float a, float b, float c, out float? x0, out float? x1, out float delta) {
+            if (a == 0) throw new ArgumentOutOfRangeException(nameof(a));
+            delta = MathF.Sqrt(b * b - 4 * a * c);
+
+            switch (delta) {
+                case var _ when delta < 0: x0 = x1 = null; break;
+                case 0:
+                    x0 = x1 = -b / (2 * a); break;
+                default:
+                    var a2 = a * 2;
+                    x0 = (-b - delta) / a2;
+                    x1 = (-b + delta) / a2;
+                    break;
+            }
         }
 
         public static class Curve {
@@ -428,11 +486,6 @@ namespace DirectDimensional.Core.Utilities {
                     return 3 * (_t * _t * (startControl - start) + 2 * _t * t * (endControl - startControl) + t * t * (end - endControl));
                 }
 
-                //public static Vector2 Acceleration(Vector2 start, Vector2 startControl, Vector2 endControl, Vector2 end, float t) {
-                //    t = Saturate(t);
-                //    return 6 * (t * (end + 3 * (startControl - endControl) - start) + (start - 2 * startControl + endControl));
-                //}
-
                 public static float ArcLength(Vector2 from, Vector2 startControl, Vector2 endControl, Vector2 end, int segments) {
                     float step = 1f / segments;
 
@@ -491,8 +544,119 @@ namespace DirectDimensional.Core.Utilities {
                     return ret;
                 }
             }
+            public static class CatmullRom {
+                public static Vector2 Evaluate(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t) {
+                    var a = 2f * p1;
+                    var b = p2 - p0;
+                    var c = 2f * p0 - 5f * p1 + 4f * p2 - p3;
+                    var d = -p0 + 3f * p1 - 3f * p2 + p3;
+
+                    t = Saturate(t);
+                    return 0.5f * (a + (b * t) + (c * t * t) + (d * t * t * t));
+                }
+                public static Vector3 Evaluate(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
+                    var a = 2f * p1;
+                    var b = p2 - p0;
+                    var c = 2f * p0 - 5f * p1 + 4f * p2 - p3;
+                    var d = -p0 + 3f * p1 - 3f * p2 + p3;
+
+                    t = Saturate(t);
+                    return 0.5f * (a + (b * t) + (c * t * t) + (d * t * t * t));
+                }
+                public static Vector4 Evaluate(Vector4 p0, Vector4 p1, Vector4 p2, Vector4 p3, float t) {
+                    var a = 2f * p1;
+                    var b = p2 - p0;
+                    var c = 2f * p0 - 5f * p1 + 4f * p2 - p3;
+                    var d = -p0 + 3f * p1 - 3f * p2 + p3;
+
+                    t = Saturate(t);
+                    return 0.5f * (a + (b * t) + (c * t * t) + (d * t * t * t));
+                }
+
+                public static Vector2 Evaluate(ReadOnlySpan<Vector2> points, float t) {
+                    if (points.Length < 4) return new(float.NaN);
+
+                    t = Saturate(t) * (points.Length - 3);
+                    var begin = Math.Min((int)MathF.Floor(t), points.Length - 4);
+                    t -= begin;
+
+                    return Evaluate(points[begin], points[begin + 1], points[begin + 2], points[begin + 3], t);
+                }
+                public static Vector3 Evaluate(ReadOnlySpan<Vector3> points, float t) {
+                    if (points.Length < 4) return new(float.NaN);
+
+                    t = Saturate(t) * (points.Length - 3);
+                    var begin = Math.Min((int)MathF.Floor(t), points.Length - 4);
+                    t -= begin;
+
+                    return Evaluate(points[begin], points[begin + 1], points[begin + 2], points[begin + 3], t);
+                }
+                public static Vector4 Evaluate(ReadOnlySpan<Vector4> points, float t) {
+                    if (points.Length < 4) return new(float.NaN);
+
+                    t = Saturate(t) * (points.Length - 3);
+                    var begin = Math.Min((int)MathF.Floor(t), points.Length - 4);
+                    t -= begin;
+
+                    return Evaluate(points[begin], points[begin + 1], points[begin + 2], points[begin + 3], t);
+                }
+
+                public static Vector2 Velocity(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t) {
+                    var b = p2 - p0;
+                    var c = 2f * p0 - 5f * p1 + 4f * p2 - p3;
+                    var d = -p0 + 3f * p1 - 3f * p2 + p3;
+
+                    t = Saturate(t);
+                    return 0.5f * b + c * t + 1.5f * d * t * t;
+                }
+                public static Vector3 Velocity(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
+                    var b = p2 - p0;
+                    var c = 2f * p0 - 5f * p1 + 4f * p2 - p3;
+                    var d = -p0 + 3f * p1 - 3f * p2 + p3;
+
+                    t = Saturate(t);
+                    return 0.5f * b + c * t + 1.5f * d * t * t;
+                }
+                public static Vector4 Velocity(Vector4 p0, Vector4 p1, Vector4 p2, Vector4 p3, float t) {
+                    var b = p2 - p0;
+                    var c = 2f * p0 - 5f * p1 + 4f * p2 - p3;
+                    var d = -p0 + 3f * p1 - 3f * p2 + p3;
+
+                    t = Saturate(t);
+                    return 0.5f * b + c * t + 1.5f * d * t * t;
+                }
+
+                public static Vector2 Velocity(ReadOnlySpan<Vector2> points, float t) {
+                    if (points.Length < 4) return new(float.NaN);
+
+                    t = Saturate(t) * (points.Length - 3);
+                    var begin = Math.Min((int)MathF.Floor(t), points.Length - 4);
+                    t -= begin;
+
+                    return Velocity(points[begin], points[begin + 1], points[begin + 2], points[begin + 3], t);
+                }
+                public static Vector3 Velocity(ReadOnlySpan<Vector3> points, float t) {
+                    if (points.Length < 4) return new(float.NaN);
+
+                    t = Saturate(t) * (points.Length - 3);
+                    var begin = Math.Min((int)MathF.Floor(t), points.Length - 4);
+                    t -= begin;
+
+                    return Velocity(points[begin], points[begin + 1], points[begin + 2], points[begin + 3], t);
+                }
+                public static Vector4 Velocity(ReadOnlySpan<Vector4> points, float t) {
+                    if (points.Length < 4) return new(float.NaN);
+
+                    t = Saturate(t) * (points.Length - 3);
+                    var begin = Math.Min((int)MathF.Floor(t), points.Length - 4);
+                    t -= begin;
+
+                    return Velocity(points[begin], points[begin + 1], points[begin + 2], points[begin + 3], t);
+                }
+            }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static float Ease(float x, EaseFunction type) {
             return type switch {
                 EaseFunction.SineIn => Easing.Sine.In(x),

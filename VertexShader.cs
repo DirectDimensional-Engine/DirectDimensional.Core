@@ -10,7 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 using D3D11VertexShader = DirectDimensional.Bindings.Direct3D11.VertexShader;
 
 namespace DirectDimensional.Core {
-    public sealed class VertexShader : DDObjects {
+    public sealed class VertexShader : DDObject {
         private D3D11VertexShader? _vs = null!;
         private ShaderReflection? _reflection = null!;
 

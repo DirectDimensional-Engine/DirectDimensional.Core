@@ -8,13 +8,26 @@ using DirectDimensional.Core.Utilities;
 using D3D11Texture2D = DirectDimensional.Bindings.Direct3D11.Texture2D;
 
 namespace DirectDimensional.Core {
-    public sealed unsafe class Texture2D : DDObjects {
+    [Flags]
+    public enum TextureFlags {
+        None = 0,
+
+        Render = 1 << 0,
+
+        /// <summary>
+        /// Allow Write if Renderable
+        /// </summary>
+        Write = 1 << 1,
+    }
+
+    public sealed unsafe class Texture2D : DDObject {
         public static readonly int TextureMaximumSize = 4096;
 
         public int Width { get; private set; }
         public int Height { get; private set; }
 
         private IntPtr _pixels;
+
         private D3D11Texture2D? _dxtexture;
         internal D3D11Texture2D? DXTexture => _dxtexture;
 
@@ -23,6 +36,10 @@ namespace DirectDimensional.Core {
 
         private SamplerState? _dxsampler;
         internal SamplerState? DXSampler => _dxsampler;
+
+        [MemberNotNullWhen(true, "_dxtexture", "_dxsrv", "_dxsampler", "DXTexture", "DXSRV", "DXSampler")]
+        public bool IsRenderable => (Flags & TextureFlags.Render) == TextureFlags.Render;
+        public bool IsWritable => (Flags & TextureFlags.Write) == TextureFlags.Write;
 
         public TextureFlags Flags { get; private set; }
 
@@ -104,14 +121,9 @@ namespace DirectDimensional.Core {
             Marshal.FreeHGlobal(_pixels);
             _pixels = IntPtr.Zero;
         }
-
         public override bool Alive() {
             return _pixels != IntPtr.Zero;
         }
-
-        [MemberNotNullWhen(true, "_dxtexture", "_dxsrv", "_dxsampler", "DXTexture", "DXSRV", "DXSampler")]
-        public bool IsRenderable => (Flags & TextureFlags.Render) == TextureFlags.Render;
-        public bool IsWritable => (Flags & TextureFlags.Write) == TextureFlags.Write;
 
         public Color32 this[int x, int y] {
             get {
@@ -142,13 +154,44 @@ namespace DirectDimensional.Core {
             }
         }
 
+        /// <summary>
+        /// Write pixel to coordinate without no range checking
+        /// </summary>
+        public void WritePixelUnsafe(int x, int y, Color32 color) {
+            Marshal.WriteInt32(_pixels, (x + y * Width) * 4, color.Integer);
+        }
+
+        /// <summary>
+        /// Read pixel to coordinate without no range checking
+        /// </summary>
+        public Color32 ReadPixelUnsafe(int x, int y) {
+            return new Color32(Marshal.ReadInt32(_pixels, (x + y * Width) * 4));
+        }
+
+        public void DrawFilledRect(Rect rect, Color32 color) {
+            if (!IsWritable || rect.HasInvalidSize) return;
+
+            var rmax = rect.Max;
+            var yDest = (int)MathF.Min(rmax.Y, Height - 1);
+            var xDest = (int)MathF.Min(rmax.X, Width - 1);
+
+            for (int y = (int)MathF.Max(0, rect.X); y < yDest; y++) {
+                for (int x = (int)MathF.Max(0, rect.Y); x < xDest; x++) {
+                    WritePixelUnsafe(x, y, color);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Upload the modified texture to GPU if it's renderable and writable
+        /// </summary>
         public unsafe void Apply() {
-            if (!IsRenderable) return;
+            if (!IsRenderable || !IsWritable) return;
 
             var ctx = Direct3DContext.DevCtx;
 
             D3D11_MAPPED_SUBRESOURCE msr;
-            ctx.Map(_dxtexture, 0u, D3D11_MAP.WriteDiscard, &msr).ThrowExceptionIfError();
+            ctx.Map(_dxtexture, 0, D3D11_MAP.WriteDiscard, &msr).ThrowExceptionIfError();
 
             IntPtr pixels = _pixels;
             IntPtr pData = msr.pData;
@@ -161,9 +204,8 @@ namespace DirectDimensional.Core {
                 pData += (int)msr.RowPitch;
             }
 
-            ctx.Unmap(_dxtexture, 0u);
+            ctx.Unmap(_dxtexture, 0);
         }
-
         private static void InitializeDXObjects(Texture2D texture, TextureFlags flags, out D3D11Texture2D? outputTexture, out ShaderResourceView? srv, out SamplerState? sampler) {
             if ((flags & TextureFlags.Render) == TextureFlags.Render) {
                 D3D11_TEXTURE2D_DESC desc = default;

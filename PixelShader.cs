@@ -9,7 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using D3D11PixelShader = DirectDimensional.Bindings.Direct3D11.PixelShader;
 
 namespace DirectDimensional.Core {
-    public sealed class PixelShader : DDObjects {
+    public sealed class PixelShader : DDObject {
         private D3D11PixelShader? _ps = null!;
         private ShaderReflection? _reflection = null!;
 

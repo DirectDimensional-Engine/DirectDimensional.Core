@@ -1,14 +1,17 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using DirectDimensional.Core.Utilities;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using System.Collections;
+using DirectDimensional.Core.Miscs.JConverters;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 namespace DirectDimensional.Core {
     public enum GradientColorMode {
         Interpolation, Fixed,
     }
 
+    [JsonConverter(typeof(GradientKeyConverter))]
     public struct GradientKey {
         public Color32 Color { get; set; }
         public GradientColorMode Mode { get; set; }
@@ -28,9 +31,14 @@ namespace DirectDimensional.Core {
             Mode = mode;
             Position = pos;
         }
+
+        public override string ToString() {
+            return nameof(GradientKey) + "(" + Color + ", " + Mode + ", " + Position + ")";
+        }
     }
 
-    public sealed class Gradient {
+    [JsonConverter(typeof(GradientConverter))]
+    public sealed class Gradient : IEnumerable<GradientKey> {
         public static readonly Color32 FallbackColor = Color32.White;
 
         private List<GradientKey> _keys;
@@ -38,9 +46,19 @@ namespace DirectDimensional.Core {
         /// <summary>
         /// For reading purpose only, not for modification. Or else unexpected thing can happen if Position value is modified
         /// </summary>
-        public ReadOnlyCollection<GradientKey> Keys => _keys.AsReadOnly();
+        public ReadOnlyCollection<GradientKey> Keys {
+            get {
+                ReorderKeys();
+                return _keys.AsReadOnly();
+            }
+        }
 
-        public int KeyCount => _keys.Count;
+        public bool Wrapping { get; set; } = false;
+
+        public int KeyCount {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _keys.Count;
+        }
 
         private bool _requireReorder = false;
 
@@ -48,14 +66,27 @@ namespace DirectDimensional.Core {
             _keys = new();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EnsureReorder() {
-            if (_requireReorder) ReorderKeys();
+        public Gradient(int capacity) {
+            _keys = new(capacity);
+        }
+
+        public Gradient(Gradient other) {
+            _keys = new(other._keys.Count);
+
+            other.ReorderKeys();
+            for (int i = 0; i < other._keys.Count; i++) {
+                _keys.Add(other._keys[i]);
+            }
+        }
+
+        public Gradient(IEnumerable<GradientKey> keys) {
+            _keys = new(keys);
+            _requireReorder = true;
         }
 
         public Color32 Sample(int t) => Sample((ushort)t);
         public Color32 Sample(ushort t) {
-            EnsureReorder();
+            ReorderKeys();
 
             t = (ushort)Math.Clamp(t, 0u, ushort.MaxValue);
 
@@ -64,10 +95,28 @@ namespace DirectDimensional.Core {
                 case 1: return _keys[0].Color;
                 default:
                     switch (t) {
-                        case var _ when t < _keys[0].Position:
+                        case var _ when t <= _keys[0].Position:
+                            if (Wrapping) {
+                                var last = _keys[^1];
+
+                                return last.Mode switch {
+                                    GradientColorMode.Fixed => last.Color,
+                                    _ => Color32.Lerp(last.Color, _keys[0].Color, DDMath.InverseLerp(t, last.Position - ushort.MaxValue, _keys[0].Position)),
+                                };
+                            }
                             return _keys[0].Color;
 
                         case var _ when t >= _keys[^1].Position:
+                            if (Wrapping) {
+                                switch (_keys[^1].Mode) {
+                                    case GradientColorMode.Fixed:
+                                        return _keys[^1].Color;
+
+                                    case GradientColorMode.Interpolation:
+                                        var first = _keys[0];
+                                        return Color32.Lerp(_keys[^1].Color, first.Color, DDMath.InverseLerp(t, _keys[^1].Position, first.Position + ushort.MaxValue));
+                                }
+                            }
                             return _keys[^1].Color;
 
                         default:
@@ -104,92 +153,115 @@ namespace DirectDimensional.Core {
         }
         public Color32 Sample(float normalize) => Sample((ushort)MathF.Round(DDMath.Saturate(normalize) * ushort.MaxValue));
 
-        public bool TryFindClosest(int position, out GradientKey output) {
-            if (KeyCount == 0) {
-                output = default;
-                return false;
+        /// <summary>
+        /// Create a new Gradient instance the same as this gradient, but all Key has inversed direction
+        /// </summary>
+        public Gradient CreateInverse() {
+            ReorderKeys();
+            Gradient ret = new(_keys.Count);
+
+            for (int i = 0; i < _keys.Count; i++) {
+                var r = _keys[i];
+
+                ret._keys.Add(new(r.Color, r.Mode, (ushort)(ushort.MaxValue - r.Position)));
             }
 
-            EnsureReorder();
+            ret.ForceReorderKeys();
+            return ret;
+        }
 
-            if (position <= _keys[0].Position) {
-                output = _keys[0];
-                return true;
-            } else if (position >= _keys[^1].Position) {
-                output = _keys[^1];
-                return true;
+        public Gradient CreateGrayscale() {
+            ReorderKeys();
+            Gradient ret = new(_keys.Count);
+
+            for (int i = 0; i < _keys.Count; i++) {
+                var r = _keys[i];
+
+                ret._keys.Add(new(r.Color.GrayscaleColor, r.Mode, r.Position));
             }
 
-            int min = 0, max = _keys.Count - 1;
-            while (min < max) {
-                var mid = (max - min) / 2;
-                var midKey = _keys[mid];
-
-                if (midKey.Position == position) {
-                    output = midKey;
-                    return true;
-                }
-
-                var nextKey = _keys[mid + 1];
-
-                if (position < midKey.Position) {
-                    if (mid > 0 && position > midKey.Position) {
-                        var prevKey = _keys[mid - 1];
-                        output = position - prevKey.Position >= midKey.Position - position ? midKey : prevKey;
-                        return true;
-                    }
-
-                    max = mid;
-                } else {
-                    if (mid < _keys.Count - 1 && position < nextKey.Position) {
-                        output = position - midKey.Position >= nextKey.Position - position ? nextKey : midKey;
-                        return true;
-                    }
-
-                    min = mid + 1;
-                }
-            }
-
-            output = default;
-            return false;
+            return ret;
         }
 
         private static readonly Func<GradientKey, float> _reorder = (x) => x.Position;
         private void ReorderKeys() {
+            if (_requireReorder) {
+                ForceReorderKeys();
+            }
+        }
+        private void ForceReorderKeys() {
             _keys = _keys.DistinctBy(_reorder).OrderBy(_reorder).ToList();
             _requireReorder = false;
         }
 
-        public unsafe void CopyKeys(List<GradientKey> destination) {
-            destination.EnsureCapacity(_keys.Count);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public List<GradientKey> CopyKeys() {
+            List<GradientKey> output = new(_keys.Count);
+            CopyKeys(output, 0);
+            return output;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyKeys(List<GradientKey> destination) {
+            CopyKeys(destination, 0);
+        }
+        public void CopyKeys(List<GradientKey> destination, int offset) {
+            int end = Math.Min(destination.Capacity, _keys.Count - offset);
 
-            for (int i = 0; i < _keys.Count; i++) {
+            for (int i = offset; i < end; i++) {
                 destination.Add(_keys[i]);
             }
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyKeys(Span<GradientKey> destination) {
+            CopyKeys(destination, 0);
+        }
+        public void CopyKeys(Span<GradientKey> destination, int offset) {
+            int end = Math.Min(destination.Length, _keys.Count - offset + 1);
 
-            //fixed (GradientKey* pDest = CollectionsMarshal.AsSpan(destination)) {
-            //    fixed (GradientKey* pSrc = CollectionsMarshal.AsSpan(_keys)) {
-            //        Unsafe.CopyBlock(pDest, pSrc, (uint)(sizeof(GradientKey) * _keys.Count));
-            //    }
-            //}
+            for (int i = offset; i < end; i++) {
+                destination[i] = _keys[i];
+            }
         }
 
-        public unsafe void AssignKeys(IEnumerable<GradientKey>? donor) {
+        public void AssignKeys(IEnumerable<GradientKey>? donor) {
             _keys.Clear();
 
             if (donor != null) {
-                foreach (var key in donor) {
-                    _keys.Add(key);
-                }
+                _keys.AddRange(donor);
+                _requireReorder = true;
+            }
+        }
+        public void AssignKeys(ReadOnlySpan<GradientKey> donor) {
+            _keys.Clear();
 
-                //fixed (GradientKey* pDest = CollectionsMarshal.AsSpan(_keys)) {
-                //    fixed (GradientKey* pSrc = CollectionsMarshal.AsSpan(donor)) {
-                //        Unsafe.CopyBlock(pDest, pSrc, (uint)(sizeof(GradientKey) * donor.Count));
-                //    }
-                //}
+            if (!donor.IsEmpty) {
+                _keys.EnsureCapacity(donor.Length);
+                for (int i = 0; i < donor.Length; i++) {
+                    _keys.Add(donor[i]);
+                }
 
                 _requireReorder = true;
             }
+        }
+
+        public void Clear() {
+            _keys.Clear();
+            _requireReorder = false;
+        }
+
+        [OnDeserialized]
+        private void AfterDeserialized(StreamingContext ctx) {
+            _requireReorder = true;
+        }
+
+        public IEnumerator<GradientKey> GetEnumerator() {
+            ReorderKeys();
+            return _keys.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            ReorderKeys();
+            return ((IEnumerable)_keys).GetEnumerator();
         }
     }
 }

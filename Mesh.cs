@@ -8,7 +8,7 @@ using DirectDimensional.Core.Utilities;
 using D3D11Buffer = DirectDimensional.Bindings.Direct3D11.Buffer;
 
 namespace DirectDimensional.Core {
-    public sealed unsafe class Mesh : DDObjects {
+    public sealed unsafe class Mesh : DDObject {
         private ComArray<D3D11Buffer>? _vbs;
         private D3D11Buffer? _ib;
 
@@ -59,13 +59,13 @@ namespace DirectDimensional.Core {
                 vertexCount = (uint)vertices.Count;
 
                 D3D11_MAPPED_SUBRESOURCE msr;
-                devctx.Map(_vbs[0]!, 0u, D3D11_MAP.WriteDiscard, &msr);
+                devctx.Map(_vbs[0]!, 0, D3D11_MAP.WriteDiscard, &msr);
 
                 fixed (Vertex* pVertex = span) {
                     Unsafe.CopyBlock(msr.pData.ToPointer(), pVertex, desc.ByteWidth);
                 }
 
-                devctx.Unmap(_vbs[0]!, 0u);
+                devctx.Unmap(_vbs[0]!, 0);
             } else {
                 _vbs[0].CheckAndRelease();
 
@@ -121,13 +121,13 @@ namespace DirectDimensional.Core {
                 indexCount = (uint)indices.Count;
 
                 D3D11_MAPPED_SUBRESOURCE msr;
-                devctx.Map(_ib, 0u, D3D11_MAP.WriteDiscard, &msr);
+                devctx.Map(_ib, 0, D3D11_MAP.WriteDiscard, &msr);
 
                 fixed (ushort* pIndex = span) {
                     Unsafe.CopyBlock(msr.pData.ToPointer(), pIndex, desc.ByteWidth);
                 }
 
-                devctx.Unmap(_ib, 0u);
+                devctx.Unmap(_ib, 0);
             } else {
                 _ib.CheckAndRelease();
 

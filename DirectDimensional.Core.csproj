@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DebugType>full</DebugType>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,8 +18,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="DirectDimensional.Bindings">
-      <HintPath>..\DirectDimensional.Bindings\bin\Debug\net6.0\DirectDimensional.Bindings.dll</HintPath>
+      <HintPath>..\DirectDimensional.Bindings\bin\x64\Release\net6.0\DirectDimensional.Bindings.dll</HintPath>
+    </Reference>
+    <Reference Include="StbTrueTypeSharp">
+      <HintPath>bin\x64\Release\net6.0\StbTrueTypeSharp.dll</HintPath>
     </Reference>
   </ItemGroup>
 

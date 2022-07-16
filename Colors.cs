@@ -2,13 +2,16 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using DirectDimensional.Core.Utilities;
+using DirectDimensional.Core.Miscs.JConverters;
+using Newtonsoft.Json;
 
 namespace DirectDimensional.Core {
+    [JsonConverter(typeof(ColorConverter))]
     public struct Color : IEquatable<Color>, IFormattable {
-        public float R { get; set; }
-        public float G { get; set; }
-        public float B { get; set; }
-        public float A { get; set; }
+        public float R;
+        public float G;
+        public float B;
+        public float A;
 
         public float Grayscale => 0.299f * R + 0.587f * G + 0.114f * B;
         public Color GrayscaleColor {
@@ -32,6 +35,12 @@ namespace DirectDimensional.Core {
         public Color WithGreen(float g) => new(R, g, B, A);
         public Color WithBlue(float b) => new(R, G, b, A);
         public Color WithAlpha(float a) => new(R, G, B, a);
+
+        /// <summary>
+        /// Return new color with alpha multiply by given multiplier
+        /// </summary>
+        /// <param name="multiplier">Fade amount</param>
+        public Color FadeMultiply(float multiplier) => new(R, G, B, A * multiplier);
 
         public static Color Lerp(Color left, Color right, float t) {
             t = DDMath.Saturate(t);
@@ -64,21 +73,11 @@ namespace DirectDimensional.Core {
             if (string.IsNullOrEmpty(format)) format = "F";
             if (provider == null) provider = CultureInfo.CurrentCulture;
 
-            switch (format.ToUpperInvariant()[0]) {
-                case 'F':
-                case 'E':
-                case 'N':
-                case 'G':
-                case 'P':
-                case 'R':
-                    return "Color(R: " + R.ToString(format, provider) + ", G: " + G.ToString(format, provider) + ", B: " + B.ToString(format, provider) + ", A: " + A.ToString(format, provider) + ")";
-
-                case 'X':
-                    return "Color(R: " + ((byte)(R * 255)).ToString(format, provider) + ", G: " + ((byte)(G * 255)).ToString(format, provider) + ", B: " + ((byte)(B * 255)).ToString(format, provider) + ", A: " + ((byte)(A * 255)).ToString(format, provider) + ")";
-
-                default:
-                    throw new FormatException(string.Format("The {0} format string is not supported.", format));
-            }
+            return format.ToUpperInvariant()[0] switch {
+                'F' or 'E' or 'N' or 'G' or 'P' or 'R' => "Color(R: " + R.ToString(format, provider) + ", G: " + G.ToString(format, provider) + ", B: " + B.ToString(format, provider) + ", A: " + A.ToString(format, provider) + ")",
+                'X' => "Color(R: " + ((byte)(R * 255)).ToString(format, provider) + ", G: " + ((byte)(G * 255)).ToString(format, provider) + ", B: " + ((byte)(B * 255)).ToString(format, provider) + ", A: " + ((byte)(A * 255)).ToString(format, provider) + ")",
+                _ => throw new FormatException(string.Format("The {0} format string is not supported.", format)),
+            };
         }
 
         public static bool operator ==(Color left, Color right) {
@@ -91,10 +90,11 @@ namespace DirectDimensional.Core {
     }
 
     [StructLayout(LayoutKind.Explicit)]
+    [JsonConverter(typeof(Color32Converter))]
     public struct Color32 : IEquatable<Color32>, IFormattable {
         public static readonly Color32 Transparent = new(0);
 
-        public static readonly Color32 White            = new(0xFFFFFFFF);
+        public static readonly Color32 White            = new(0xFF, 0xFF, 0xFF);
         public static readonly Color32 Black            = new(0x00, 0x00, 0x00);
         public static readonly Color32 Red              = new(0xFF, 0x00, 0x00);
         public static readonly Color32 Green            = new(0x00, 0xFF, 0x00);
@@ -236,51 +236,69 @@ namespace DirectDimensional.Core {
         public static readonly Color32 YellowGreen = new(154, 205, 50);
 
         [field: FieldOffset(0)]
-        public int Integer { get; set; }
-        [field: FieldOffset(0)]
-        public uint Unsigned { get; set; }
+        public byte R;
+        [field: FieldOffset(1)]
+        public byte G;
+        [field: FieldOffset(2)]
+        public byte B;
+        [field: FieldOffset(3)]
+        public byte A;
 
         [field: FieldOffset(0)]
-        public byte R { get; set; }
-        [field: FieldOffset(1)]
-        public byte G { get; set; }
-        [field: FieldOffset(2)]
-        public byte B { get; set; }
-        [field: FieldOffset(3)]
-        public byte A { get; set; }
+        public int Integer;
+        [field: FieldOffset(0)]
+        public uint Unsigned;
+
+        public byte Grayscale {
+            get {
+                // Compiler will optimize the division
+                return (byte)Math.Round((0.299f / 255f * R + 0.587f / 255f * G + 0.114f / 255f * B) * 255);
+            }
+        }
+        public Color32 GrayscaleColor {
+            get {
+                var gs = Grayscale;
+                return new Color32(gs, gs, gs, A);
+            }
+        }
+
+        public Color32(int integer) {
+            R = G = B = A = 0;
+            Unsigned = 0;
+            Integer = integer;
+        }
+        public Color32(uint unsigned) {
+            R = G = B = A = 0;
+            Integer = 0;
+            Unsigned = unsigned;
+        }
+
+        public Color32(byte gray) : this(gray, gray, gray, 0xFF) { }
 
         public Color32(byte r, byte g, byte b) {
             Integer = 0;
-            Unsigned = 0u;
+            Unsigned = 0;
 
             R = r; G = g; B = b; A = 255;
         }
 
         public Color32(byte r, byte g, byte b, byte a) {
             Integer = 0;
-            Unsigned = 0u;
+            Unsigned = 0;
 
             R = r; G = g; B = b; A = a;
-        }
-
-        public Color32(int integer) {
-            R = 0; G = 0; B = 0; A = 0;
-            Unsigned = 0u;
-
-            Integer = integer;
-        }
-
-        public Color32(uint unsigned) {
-            R = 0; G = 0; B = 0; A = 0;
-            Integer = 0;
-
-            Unsigned = unsigned;
         }
 
         public Color32 WithRed(byte r) => new(r, G, B, A);
         public Color32 WithGreen(byte g) => new(R, g, B, A);
         public Color32 WithBlue(byte b) => new(R, G, b, A);
         public Color32 WithAlpha(byte a) => new(R, G, B, a);
+
+        /// <summary>
+        /// Return new color with alpha multiply by given multiplier
+        /// </summary>
+        /// <param name="multiplier">Fade amount</param>
+        public Color32 FadeMultiply(float multiplier) => new(R, G, B, (byte)(A * multiplier));
 
         public static Color32 Lerp(Color32 left, Color32 right, float t) {
             t = DDMath.Saturate(t);
@@ -301,12 +319,12 @@ namespace DirectDimensional.Core {
             return R == other.R && G == other.G && B == other.B && A == other.A;
         }
 
-        public static bool operator ==(Color32 left, Color32 right) {
-            return left.Integer == right.Integer;
+        public static unsafe bool operator ==(Color32 left, Color32 right) {
+            return *(int*)&left.R == *(int*)&right.R;
         }
 
-        public static bool operator !=(Color32 left, Color32 right) {
-            return left.Integer != right.Integer;
+        public static unsafe bool operator !=(Color32 left, Color32 right) {
+            return *(int*)&left.R != *(int*)&right.R;
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj) {
@@ -315,21 +333,83 @@ namespace DirectDimensional.Core {
             return this == color;
         }
 
+        /// <summary>
+        /// <para>Parse Color string in form of HTML string into instance of Color32.</para>
+        /// <br>Note:</br>
+        /// <br>1. Input string should be RRGGBB or RRGGBBAA</br>
+        /// <br>2. Input string can contains hash character at the beginning.</br>
+        /// <br>3. In form of XX, output will have RGB set to that value.</br>
+        /// </summary>
+        /// <param name="span">String input</param>
+        /// <param name="output">Parsed result</param>
+        /// <returns>Whether parsing operation successfully</returns>
+        public static bool TryParse(ReadOnlySpan<char> span, out Color32 output) {
+            output = default;
+            if (span.IsEmpty) return false;
+
+            // Optional hash at the beginning
+            if (span[0] == '#') span = span[1..];
+
+            switch (span.Length) {
+                case 2:
+                    if (byte.TryParse(span, NumberStyles.HexNumber, null, out var i8)) {
+                        output = new Color32(i8);
+                        return true;
+                    }
+                    return false;
+
+                case 6:
+                    if (!byte.TryParse(span[0..2], NumberStyles.HexNumber, null, out output.R)) {
+                        output = default;
+                        return false;
+                    }
+                    if (!byte.TryParse(span[2..4], NumberStyles.HexNumber, null, out output.G)) {
+                        output = default;
+                        return false;
+                    }
+                    if (!byte.TryParse(span[4..6], NumberStyles.HexNumber, null, out output.B)) {
+                        output = default;
+                        return false;
+                    }
+
+                    output.A = 255;
+                    return true;
+
+                case 8:
+                    if (!byte.TryParse(span[0..2], NumberStyles.HexNumber, null, out output.R)) {
+                        output = default;
+                        return false;
+                    }
+                    if (!byte.TryParse(span[2..4], NumberStyles.HexNumber, null, out output.G)) {
+                        output = default;
+                        return false;
+                    }
+                    if (!byte.TryParse(span[4..6], NumberStyles.HexNumber, null, out output.B)) {
+                        output = default;
+                        return false;
+                    }
+                    if (!byte.TryParse(span[6..8], NumberStyles.HexNumber, null, out output.A)) {
+                        output = default;
+                        return false;
+                    }
+                    return true;
+            }
+
+            return false;
+        }
+
         public override int GetHashCode() {
-            return Integer.GetHashCode();
+            return (R << 24) | (G << 16) | (B << 8) | A;
         }
 
         public string ToString(string? format, IFormatProvider? provider) {
             if (string.IsNullOrEmpty(format)) format = "D";
             if (provider == null) provider = CultureInfo.CurrentCulture;
 
-            switch (format.ToUpperInvariant()[0]) {
-                default:
-                    return "Color32(R: " + R.ToString(format, provider) + ", G: " + G.ToString(format, provider) + ", B: " + B.ToString(format, provider) + ", A: " + A.ToString(format, provider) + ")";
-
-                case 'X':
-                    return "Color32(R: " + R.ToString("X2", provider) + ", G: " + G.ToString("X2", provider) + ", B: " + B.ToString("X2", provider) + ", A: " + A.ToString("X2", provider) + ")";
-            }
+            return format.ToUpperInvariant()[0] switch {
+                'X' => "Color32(R: " + R.ToString("X2", provider) + ", G: " + G.ToString("X2", provider) + ", B: " + B.ToString("X2", provider) + ", A: " + A.ToString("X2", provider) + ")",
+                _ => "Color32(R: " + R.ToString(format, provider) + ", G: " + G.ToString(format, provider) + ", B: " + B.ToString(format, provider) + ", A: " + A.ToString(format, provider) + ")",
+            };
         }
 
         public override string ToString() {

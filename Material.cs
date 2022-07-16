@@ -3,7 +3,7 @@ using DirectDimensional.Bindings;
 using DirectDimensional.Bindings.D3DCompiler;
 
 namespace DirectDimensional.Core {
-    public sealed class Material : DDObjects {
+    public sealed class Material : DDObject {
         public VertexShader? VertexShader { get; set; }
         public PixelShader? PixelShader { get; set; }
 

@@ -1,17 +1,43 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using DirectDimensional.Core.Miscs.JConverters;
 
 namespace DirectDimensional.Core {
+    //[JsonConverter(typeof(CircleConverter))]
     public struct Circle : IEquatable<Circle>, IFormattable {
         public Vector2 Center;
         public float Radius;
 
+        public float X {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Center.X;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => Center.X = value;
+        }
+        public float Y {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Center.Y;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => Center.Y = value;
+        }
+
         public float Diameter {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Radius * 2;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set => Radius = value / 2;
+        }
+
+        public float Area {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => MathF.PI * Radius * Radius;
+        }
+
+        public float Perimeter {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => MathF.PI * 2 * Radius;
         }
 
         public Circle(float radius) : this(default, radius) { }
@@ -29,39 +55,39 @@ namespace DirectDimensional.Core {
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public bool CollideSqr(Vector2 point) {
             var dist = (point - Center).LengthSquared();
-            return dist <= Radius * Radius;
+            return dist < Radius * Radius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public bool Collide(Vector2 point) {
-            return (point - Center).Length() <= Radius;
+            return (point - Center).Length() < Radius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public bool Collide(Circle other) {
-            return (Center - other.Center).Length() <= Radius + other.Radius;
+            return (Center - other.Center).Length() < Radius + other.Radius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public bool CollideSqr(Circle other) {
             float totalRadius = Radius + other.Radius;
-            return (Center - other.Center).LengthSquared() <= totalRadius * totalRadius;
+            return (Center - other.Center).LengthSquared() < totalRadius * totalRadius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public bool Collide(Rect rect) {
-            return (Center - Vector2.Clamp(Center, rect.Position, rect.Position + rect.Size)).Length() <= Radius;
+            return (Center - Vector2.Clamp(Center, rect.Position, rect.Position + rect.Size)).Length() < Radius;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public bool CollideSqr(Rect rect) {
-            return (Center - Vector2.Clamp(Center, rect.Position, rect.Position + rect.Size)).LengthSquared() <= Radius * Radius;
+            return (Center - Vector2.Clamp(Center, rect.Position, rect.Position + rect.Size)).LengthSquared() < Radius * Radius;
         }
 
         public Rect BoundingBox {
             [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get {
-                return new Rect(Center - Vector2.One * Radius, Radius * 2 * Vector2.One);
+                return new Rect(Center - new Vector2(Radius), new Vector2(Diameter));
             }
         }
 
@@ -101,22 +127,6 @@ namespace DirectDimensional.Core {
 
         public static bool operator!=(Circle lhs, Circle rhs) {
             return !(lhs == rhs);
-        }
-
-        public static Circle operator+(Circle circle, Vector2 translate) {
-            return new Circle(circle.Center + translate, circle.Radius);
-        }
-
-        public static Circle operator -(Circle circle, Vector2 translate) {
-            return new Circle(circle.Center - translate, circle.Radius);
-        }
-
-        public static Circle operator*(Circle circle, float scale) {
-            return new Circle(circle.Center, circle.Radius * scale);
-        }
-
-        public static Circle operator /(Circle circle, float scale) {
-            return new Circle(circle.Center, circle.Radius / scale);
         }
     }
 }

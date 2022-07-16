@@ -3,11 +3,14 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Globalization;
+using DirectDimensional.Core.Miscs.JConverters;
+using System.Text.Json.Serialization;
 
 namespace DirectDimensional.Core {
     /// <summary>
     /// A rectangle struct defined by a Center and extend size
     /// </summary>
+    //[JsonConverter(typeof(RectConverter))]
     public struct Rect : IEquatable<Rect>, IFormattable {
         public Vector2 Position;
         public Vector2 Size;
@@ -17,6 +20,20 @@ namespace DirectDimensional.Core {
             get => Position + Size;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set => Size = value - Position;
+        }
+
+        public float MaxX {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Position.X + Size.X;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => Size.X = value - Position.X;
+        }
+
+        public float MaxY {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Position.Y + Size.Y;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => Size.Y = value - Position.Y;
         }
 
         public float X {
@@ -52,6 +69,35 @@ namespace DirectDimensional.Core {
             get => Position + Size / 2;
         }
 
+        public float CenterX {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Position.X + Size.X / 2;
+        }
+        public float CenterY {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Position.Y + Size.Y / 2;
+        }
+
+        public bool IsSquare {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Size.X == Size.Y;
+        }
+
+        public float Area {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Size.X * Size.Y;
+        }
+
+        public float Perimeter {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Size.X + Size.X + Size.Y + Size.Y;
+        }
+
+        public float DiagonalLength {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Size.Length();
+        }
+
         public Rect(Vector2 position, Vector2 size) {
             Position = position;
             Size = size;
@@ -81,7 +127,7 @@ namespace DirectDimensional.Core {
         public bool Collide(Rect rect) {
             Vector2 tmax = Position + Size, omax = rect.Position + rect.Size;
 
-            return tmax.X >= rect.Position.X && Position.X <= omax.X && tmax.Y >= rect.Position.Y && Position.Y <= omax.Y;
+            return tmax.X > rect.Position.X && Position.X < omax.X && tmax.Y > rect.Position.Y && Position.Y < omax.Y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -89,57 +135,32 @@ namespace DirectDimensional.Core {
             return circle.Collide(this);
         }
 
-        public void Extrude(float left, float right, float top, float bottom) {
-            Position -= new Vector2(left, bottom);
-            Size += new Vector2(left + right, bottom + top);
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public Rect Extrude(float left, float right, float top, float bottom) {
+            return new Rect(Position - new Vector2(left, bottom), Size + new Vector2(left + right, bottom + top));
         }
 
-        /// <summary>
-        /// Wrapper for <seealso cref="Extrude(float, float, float, float)"/>, each axis correspond to 1 parameter, in order of XYZW
-        /// </summary>
-        /// <param name="extrude"></param>
-        public void Extrude(Vector4 extrude) {
-            Extrude(extrude.X, extrude.Y, extrude.Z, extrude.W);
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public Rect Extrude(float horizontal, float vertical) {
+            return Extrude(horizontal, horizontal, vertical, vertical);
         }
 
-        public void Extrude(float horizontal, float vertical) {
-            Extrude(horizontal, horizontal, vertical, vertical);
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public Rect Extrude(float value) {
+            return new Rect(Position - new Vector2(value), Size + new Vector2(value * 2));
         }
 
-        public void Extrude(float value) {
-            Extrude(value, value, value, value);
-        }
+        public bool IntersectRect(Rect other, out Rect intersect) {
+            var max = Vector2.Max(Position, other.Position);
+            var min = Vector2.Min(Max, other.Max);
 
-        public void RoundSize() {
-            Size = new Vector2(MathF.Round(Size.X), MathF.Round(Size.Y));
-        }
+            if (max.X > min.X || max.Y > min.Y) {
+                intersect = default;
+                return false;
+            }
 
-        public void FloorSize() {
-            Size = new Vector2(MathF.Floor(Size.X), MathF.Floor(Size.Y));
-        }
-
-        public void CeilSize() {
-            Size = new Vector2(MathF.Ceiling(Size.X), MathF.Ceiling(Size.Y));
-        }
-
-        public void RoundPosition() {
-            Position = new Vector2(MathF.Round(Position.X), MathF.Round(Position.Y));
-        }
-
-        public void FloorPosition() {
-            Position = new Vector2(MathF.Floor(Position.X), MathF.Floor(Position.Y));
-        }
-
-        public void CeilPosition() {
-            Position = new Vector2(MathF.Ceiling(Position.X), MathF.Ceiling(Position.Y));
-        }
-
-        public Vector2 MapCoordinate(Vector2 point) {
-            return (point - Position) / Size;
-        }
-
-        public Vector2 UnmapCoordinate(Vector2 point) {
-            return Position + Size * point;
+            intersect = new(max, min - max);
+            return true;
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj) {
@@ -179,30 +200,6 @@ namespace DirectDimensional.Core {
 
         public static bool operator!=(Rect left, Rect right) {
             return !(left == right);
-        }
-
-        public static Rect operator*(Rect rect, float scale) {
-            return new Rect(rect.Position, rect.Size * scale);
-        }
-
-        public static Rect operator/(Rect rect, float scale) {
-            return new Rect(rect.Position, rect.Size / scale);
-        }
-
-        public static Rect operator&(Rect lhs, Rect rhs) {
-            Vector2 lmax = lhs.Max, rmax = rhs.Max;
-
-            float left = MathF.Max(lhs.X, rhs.X);
-            float right = MathF.Min(lmax.X, rmax.X);
-
-            float bottom = MathF.Max(lhs.Y, rhs.Y);
-            float top = MathF.Min(lmax.Y, rmax.Y);
-
-            if (left > right || bottom > top) {
-                return default;
-            }
-
-            return new Rect(left, bottom, right - left, top - bottom);
         }
 
         public bool HasInvalidSize => Size.X <= 0 || Size.Y <= 0;

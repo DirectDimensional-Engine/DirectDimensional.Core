@@ -4,13 +4,17 @@ using System.Numerics;
 using System.Globalization;
 using DirectDimensional.Core.Utilities;
 using System.Runtime.CompilerServices;
+using DirectDimensional.Core.Miscs.JConverters;
+using System.Text.Json.Serialization;
 
 namespace DirectDimensional.Core {
+    //[JsonConverter(typeof(LineConverter))]
     public struct Line : IEquatable<Line>, IFormattable {
         public Vector2 Start;
         public Vector2 End;
 
         public float Angle {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get {
                 var d = End - Start;
                 return MathF.Atan2(d.Y, d.X);
@@ -21,6 +25,7 @@ namespace DirectDimensional.Core {
         /// Normal vector of the line. Counter-clockwised, unnormalized.
         /// </summary>
         public Vector2 CCWNormal {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get {
                 var d = End - Start;
                 return new(d.Y, -d.X);
@@ -31,18 +36,35 @@ namespace DirectDimensional.Core {
         /// Normal vector of the line. Clockwised, unnormalized.
         /// </summary>
         public Vector2 CWNormal {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get {
                 var d = End - Start;
                 return new(-d.Y, d.X);
             }
         }
 
-        public float Length => Displacement.Length();
-        public float LengthSquare => Displacement.LengthSquared();
+        public float Length {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+            get => Displacement.Length();
+        }
+        public float LengthSquare {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+            get => Displacement.LengthSquared();
+        }
 
         public Vector2 Displacement {
-            [method: MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get => End - Start;
+        }
+
+        public Vector2 Direction {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+            get => Vector2.Normalize(End - Start);
+        }
+
+        public Vector2 Center {
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+            get => (Start + End) / 2;
         }
 
         public Line(float ex, float ey) : this(0, 0, ex, ey) { }
@@ -122,6 +144,14 @@ namespace DirectDimensional.Core {
             return false;
         }
 
+        public bool Cut(Line other) {
+            return Vector2.Dot(Direction, other.Direction) >= 1 - 0.00001f;
+        }
+
+        public bool Parallel(Line other) {
+            return MathF.Abs(Vector2.Dot(Direction, other.Direction)) <= 0.00001f;
+        }
+
         public bool Equals(Line line) {
             return line.Start == Start && line.End == End;
         }
@@ -160,14 +190,6 @@ namespace DirectDimensional.Core {
 
         public static Line operator-(Line line) {
             return new Line(line.End, line.Start);
-        }
-
-        public static Line operator+(Line line, Vector2 translate) {
-            return new Line(line.Start + translate, line.End + translate);
-        }
-
-        public static Line operator -(Line line, Vector2 translate) {
-            return new Line(line.Start - translate, line.End - translate);
         }
 
         public static Line CreateHalfExtend(Vector2 center, Vector2 direction, float length) {
